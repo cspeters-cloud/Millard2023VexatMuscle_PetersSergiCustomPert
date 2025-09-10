@@ -8,6 +8,7 @@ function [forceLengthProximalTitinCurve, forceLengthProximalTitinInverseCurve,..
                                    forceLengthECMHalfCurve,...
                                    sarcomereProperties,...
                                    muscleName,...
+                                   flag_useZeroSlackLengthForTitinCurves,...
                                    flag_useWLCTitinModel,...                                   
                                    flag_createTwoSidedCurves,...
                                    flag_computeCurveIntegrals,...
@@ -44,10 +45,10 @@ fDZero   = 0.00;
 sarcomereProperties.PEVKNormStretchRate = ...
     sarcomereProperties.PEVKNormStretchRate*scalePevkStretchRate;
 
-titinCurviness = 0.5;%forceLengthCurveSettings.curviness;
+titinCurviness = forceLengthCurveSettings.curviness;
 
-igCurviness = 0.5;%titinCurviness;
-pevkCurviness = 0.5;%titinCurviness;
+igCurviness = titinCurviness;
+pevkCurviness = titinCurviness;
 
 
 
@@ -277,7 +278,6 @@ end
 
 
 
-
 %Geometrically scale the stiffnesses of the three segment titin
 %force-length curves
 kpevkLow    = kpevk*(forceLengthCurveSettings.kLow ...
@@ -446,6 +446,19 @@ dCurviness = (igCurviness*ligdRefHalf ...
             /(ligdRefHalf + lpevkRefHalf*(1-normPevkToActinAttachmentPoint));
 
 fNfailure = sarcomereProperties.normTitinFailureForce*2; 
+
+%%
+% Adjust the zero length to zero if desired
+% Since nothing depends on these variables we can just set them to zero
+% here.
+%%
+if(flag_useZeroSlackLengthForTitinCurves==1)
+    ligpZeroHalf    =0;
+    lpevkZeroHalf   =0;
+    ligdZeroHalf    =0;
+    lPZeroHalf      =0;
+    lDZeroHalf      =0;
+end
 
 %%
 % Make the Igp curve

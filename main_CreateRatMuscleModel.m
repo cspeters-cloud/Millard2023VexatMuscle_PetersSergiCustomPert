@@ -28,7 +28,7 @@ trialId = 3;
 % Parameters
 %%
 flag_makeAndSavePubPlots = 1;
-flag_makeDetailedExpDataPlots=0;
+flag_makeDetailedExpDataPlots=1;
 
 validMuscles = {'SOL','EDL'};
 
@@ -171,15 +171,27 @@ setSarcomereProperties.normMaxActiveTitinToActinDamping = 20.3; %fo/(lo/s)
 % muscle: a new mechanism. Journal of Experimental Biology. 2002 
 % May 1;205(9):1275-83.
 
+setSarcomereProperties.setTitinSlackLengthToZero = 0;
+setSarcomereProperties.setT12ToZLineSegmentToZero = 0;
+% In the present model the Z-line to T12 segment is modeled as a rigid
+% rod. This means that as the sarcomere shortens, the titin element cannot
+% attach to actin at a distance that is shorter than 0.1. However, the 
+% simulations of Tomalka et al. 2017 (The force length relation is
+% invisible ...) suggests that titin might be able to attach to actin
+% at lengths that are shorter. By setting the Z-line to T12 length to be
+% zero, this length becomes a part of the proximal Ig segment. This means
+% that the proximal Ig segment will really shorten to the base of the
+% actin filament when it is under a load of zero.
+
+setSarcomereProperties.normFiberLengthAtZeroPassiveForce        = 0;%0.6;
+setSarcomereProperties.normFiberLengthAtOneNormPassiveForce     = 1.9;
+setSarcomereProperties.normFiberStiffnessAtOneNormPassiveForce  = nan;
 
 
 %%
 % Manually set musculotendon properties
 %%
 
-setMusculotendonProperties.normFiberLengthAtZeroPassiveForce        = 0.6;
-setMusculotendonProperties.normFiberLengthAtOneNormPassiveForce     = 1.9;
-setMusculotendonProperties.normFiberStiffnessAtOneNormPassiveForce  = nan;
 setMusculotendonProperties.scaleOptimalFiberLength                  = 1;
 setMusculotendonProperties.scaleMaximumIsometricTension             = 1;
 setMusculotendonProperties.makeSkinnedFibrilModel = makeSkinnedFibrilModel;
@@ -230,15 +242,28 @@ switch experimentName
     case 'TRSS2017'
         muscleName = validMuscles{2};
                 
-        setSarcomereProperties.normLengthTitinActinBondMinimum  = 0.0;
+        setSarcomereProperties.normLengthTitinActinBondMinimum  = 1.70/2.525;
         setSarcomereProperties.normMaxActiveTitinToActinDamping = 200;
 
-        setMusculotendonProperties.fiberForceLengthCurviness = 0.75;
+        setSarcomereProperties.fiberForceLengthCurviness = 0.85;
 
         setCurveProperties.useTitinModel2025                 = 1;
 
         setCurveProperties.forceVelocityMultiplierAtLowEccentricFiberVelocity = 1.35;
         setCurveProperties.forceVelocityMultiplierAtMaximumEccentricFiberVelocity = 1.45; 
+
+        setSarcomereProperties.setT12ToZLineSegmentToZero=0;
+        setSarcomereProperties.setTitinSlackLengthToZero =0;
+
+        setCurveProperties.flC.adjustAscendingLimbNormalizedForce = 0.0;%0.2;
+        setCurveProperties.flC.useRoundAscendingLimb = 0;
+        %setCurveProperties.adjustActiveForceLengthCurviness = 0.5;
+
+        setCurveProperties.shiftLengthActiveForceLengthCurveDescendingCurve=0;
+
+        setSarcomereProperties.normCrossBridgeStiffness         =75;%49.1;  %fiso/lopt
+        setSarcomereProperties.normCrossBridgeDamping           =0.347;%*(75/49.1); %fiso/(lopt/s)
+
 
         switch trialId
             case 1
@@ -260,7 +285,8 @@ switch experimentName
         setCurveProperties.forceVelocityMultiplierAtMaximumEccentricFiberVelocity ...
             = 1.05;         
 
-        setMusculotendonProperties.fiberForceLengthCurviness = 0.5;
+        setSarcomereProperties.fiberForceLengthCurviness = 0.5;
+        setCurveProperties.shiftLengthActiveForceLengthCurveDescendingCurve=0;
 
         setSarcomereProperties.normCrossBridgeStiffness         = 75;%49.1;  %fiso/lopt
         setSarcomereProperties.normCrossBridgeDamping           = 0.347*(75/49.1); %fiso/(lopt/s)
@@ -378,23 +404,23 @@ if(indexOfDataSetForPassiveCurveParameters>0)
     y0 = x(2,1);
     %y = c*x + x0
     
-    setMusculotendonProperties.normFiberStiffnessAtOneNormPassiveForce = ...
+    setSarcomereProperties.normFiberStiffnessAtOneNormPassiveForce = ...
         c/(1/fittingFpeNOptSarcomereLengthInUm);
-    setMusculotendonProperties.normFiberLengthAtOneNormPassiveForce = ...
+    setSarcomereProperties.normFiberLengthAtOneNormPassiveForce = ...
         ((1-y0)/c)/fittingFpeNOptSarcomereLengthInUm;
 
     if(strcmp(experimentName,'TWHSS2021')==1)
-        setMusculotendonProperties.normFiberLengthAtOneNormPassiveForce = ...
-            setMusculotendonProperties.normFiberLengthAtOneNormPassiveForce ...
+        setSarcomereProperties.normFiberLengthAtOneNormPassiveForce = ...
+            setSarcomereProperties.normFiberLengthAtOneNormPassiveForce ...
             +shiftPassiveCurve;
     
-        setMusculotendonProperties.normFiberStiffnessAtLowPassiveForce = ...
-            setMusculotendonProperties.normFiberStiffnessAtOneNormPassiveForce*0.4;
+        setSarcomereProperties.normFiberStiffnessAtLowPassiveForce = ...
+            setSarcomereProperties.normFiberStiffnessAtOneNormPassiveForce*0.4;
     end
     
     
-    disp(setMusculotendonProperties.normFiberStiffnessAtOneNormPassiveForce);
-    disp(setMusculotendonProperties.normFiberLengthAtOneNormPassiveForce);
+    disp(setSarcomereProperties.normFiberStiffnessAtOneNormPassiveForce);
+    disp(setSarcomereProperties.normFiberLengthAtOneNormPassiveForce);
 
 end
 
@@ -416,10 +442,10 @@ wlcTitinModel = 1;
 scaleOptimalFiberLengthHumanSoleus = 1;
 scaleMaximumIsometricTensionHumanSoleus = 1;
 
-defaultHumanSoleus = createHumanSoleusModel(...
+defaultHumanSoleus = createHumanSoleusModel2025(...
                         setSarcomereProperties.normPevkToActinAttachmentPoint,...
                         setSarcomereProperties.normMaxActiveTitinToActinDamping,...                        
-                        setMusculotendonProperties.normFiberLengthAtOneNormPassiveForce,... 
+                        setSarcomereProperties.normFiberLengthAtOneNormPassiveForce,... 
                         setSarcomereProperties.ecmForceFraction,...
                         linearTitinModel,...
                         setCurveProperties.useTwoSidedTitinCurves,...
@@ -428,6 +454,7 @@ defaultHumanSoleus = createHumanSoleusModel(...
                         setCurveProperties.flag_enableNumericallyNonZeroGradients,...
                         scaleOptimalFiberLengthHumanSoleus,...
                         scaleMaximumIsometricTensionHumanSoleus,...
+                        setSarcomereProperties.setT12ToZLineSegmentToZero,...
                         setCurveProperties.useTitinModel2025,...
                         projectFolders,...
                         flag_useOctave);

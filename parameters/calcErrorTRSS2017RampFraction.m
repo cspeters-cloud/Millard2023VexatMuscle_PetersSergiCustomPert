@@ -1,0 +1,197 @@
+function [flNError,figDebugFitting,ratFibrilModelsUpd,benchRecord] =...
+    calcErrorTRSS2017RampFraction(optParams,...
+                       fittingFraction, npts, ...
+                       ratFibrilModels, expTRSS2017,simConfig,...
+                       figDebugFitting,subPlotPanel,lineColorsSimTRSS2017)
+
+
+    errVec = zeros(length(ratFibrilModels),npts);
+    numberOfSimulations = length(simConfig.trials);
+    benchRecord             = [];
+
+    for idxTrial = simConfig.trials
+
+        %Update the model parameters
+        switch optParams.name
+
+            case 'responseTimeScaling'
+                ratFibrilModels(idxTrial).sarcomere.slidingTimeConstantLengthening= ...
+                    ratFibrilModels(idxTrial).sarcomere.slidingTimeConstant...
+                    *optParams.value;     
+            case 'xeStiffnessDampingScaling'
+                ratFibrilModels(idxTrial).sarcomere.normCrossBridgeStiffness = ...
+                    ratFibrilModels(idxTrial).sarcomere.normCrossBridgeStiffness ...
+                    *optParams.value;
+                ratFibrilModels(idxTrial).sarcomere.normCrossBridgeDamping = ...
+                    ratFibrilModels(idxTrial).sarcomere.normCrossBridgeDamping ...
+                    *optParams.value;
+            otherwise
+                assert(0,'Error: invalid optParams.name');
+        end
+
+        lceOptMdl   = ratFibrilModels(idxTrial).musculotendon.optimalFiberLength;
+        vmax        = ratFibrilModels(idxTrial).musculotendon.maximumNormalizedFiberVelocity;
+        lceOptData  = min(expTRSS2017.activeLengtheningData(3).x);
+
+        rampLengthStart  = expTRSS2017.activeLengtheningData(idxTrial).x(1,1);
+        rampLengthEnd    = expTRSS2017.activeLengtheningData(idxTrial).x(end,1); 
+        
+        timeStart       = 0;
+        timeRampStart   = 0.1;
+        rampVelocity    = 0.11*vmax*lceOptData;
+        timeRampEnd     = timeRampStart + ...
+                          fittingFraction*(...
+                            rampLengthEnd-rampLengthStart)/rampVelocity;         
+        timeEnd         = timeRampEnd;
+
+
+        timeSpan = [timeStart,timeEnd];
+    
+        timeStimulation = timeStart;
+        activation      = 1;
+    
+        excitationFcn = @(argT)calcStepFunction(argT,...
+                          timeStimulation-1,...
+                          inf,...
+                          activation);
+        
+        pathLengthFcn = @(argT)calcRampStateSharp(argT,...
+                                timeRampStart,timeRampEnd,...
+                                rampLengthStart,rampVelocity);   
+
+        activationFcn = ...
+            @(argU,argA)calcFirstOrderActivationDerivative(argU,argA, ...
+                ratFibrilModels(idxTrial).sarcomere.activationTimeConstant,...
+                ratFibrilModels(idxTrial).sarcomere.deactivationTimeConstant,0);        
+
+        %
+        % Bench config
+        %
+        benchConfig.npts                  = npts;
+        benchConfig.relTol                = 1e-6;
+        benchConfig.absTol                = 1e-6;
+        benchConfig.minActivation         = 0;
+        benchConfig.color0                = [0,0,1].*0.5;
+        benchConfig.color1                = [0,0,1];
+        
+        nStates     = 3;
+        labelStates = {'$$\dot{\ell}_{a}$$', '$$\ell_{a}$$', '$$\ell_1$$'};       
+        
+        benchConfig.numberOfMuscleStates  = nStates;
+        benchConfig.stateLabels           = labelStates;
+        benchConfig.name                  = '';
+        benchConfig.initialState          = [];
+        benchConfig.initialActivation     = excitationFcn(0);
+        benchConfig.pathFcn               = [];
+        benchConfig.excitationFcn         = [];
+        benchConfig.activationFcn         = activationFcn; 
+        benchConfig.tspan                 = timeSpan;  
+        
+        benchConfig.useFiberDamping  = 1;
+        benchConfig.useElasticTendon = 0;
+        benchConfig.damping          = 0.1;
+        benchConfig.iterMax          = 100;
+        benchConfig.tol              = 1e-6;
+        
+        loopTolerance = min(benchConfig.relTol,benchConfig.absTol)/100;
+        
+        %
+        % Initialization 
+        %
+        
+        modelConfig = struct( ...
+          'iterMax'                 , 100             , ...
+          'tol'                     , loopTolerance   , ... 
+          'tolInit'                 , sqrt(eps)       , ...
+          'minActivation'           , 0.0             , ...
+          'useElasticTendon'        , 0 , ...
+          'initializeState'         , 0                     );  
+    
+        modelConfig.initializeState =1;
+        activationState0    = [0;excitationFcn(0)];
+        pathState0          = pathLengthFcn(0);
+        muscleState0        = zeros(nStates,1);
+        mtInfo = calcMillard2023VexatMuscleInfo(...
+                    activationState0,...
+                    pathState0,...
+                    muscleState0,...
+                    ratFibrilModels(idxTrial).musculotendon,...
+                    ratFibrilModels(idxTrial).sarcomere,...
+                    ratFibrilModels(idxTrial).curves,...
+                    modelConfig);
+
+        muscleState0                = mtInfo.state.value;
+        modelConfig.initializeState = 0;           
+        
+        benchConfig.numberOfMuscleStates = length(muscleState0);
+        benchConfig.initialState         = muscleState0;
+        
+        benchConfig.minimumActivation    = 0;
+        benchConfig.name                 = 'Vexat';
+        benchConfig.eventFcn             = [];            
+        
+        calcMillard2023VexatMuscleInfoFcn = ...
+             @(activationState1,pathState2,mclState3) ...
+             calcMillard2023VexatMuscleInfo(    ...
+                activationState1,...
+                pathState2,...
+                mclState3,...
+                ratFibrilModels(idxTrial).musculotendon,...
+                ratFibrilModels(idxTrial).sarcomere,...
+                ratFibrilModels(idxTrial).curves,...
+                modelConfig);
+        
+        %
+        % Run the simulation
+        %
+        idx                     = idxTrial;
+        flag_appendEnergetics   = 0;
+        flag_useOctave          = 0;
+        
+        benchConfig.pathFcn               = pathLengthFcn;
+        benchConfig.excitationFcn         = excitationFcn;             
+        benchRecord = runPrescribedLengthActivationSimulation2025(...
+                                   calcMillard2023VexatMuscleInfoFcn,...
+                                   [],...
+                                   benchConfig,...
+                                   benchRecord,...
+                                   idx, ...
+                                   numberOfSimulations,...
+                                   flag_appendEnergetics,...
+                                   flag_useOctave);
+        %fprintf('%i / %i\n', idx, numberOfSimulations);  
+
+        [expLceU,iq] = unique(expTRSS2017.activeLengtheningData(idx).x);
+        expfNU = expTRSS2017.activeLengtheningData(idx).y(iq);
+
+        for k=1:1:npts
+            lceN = benchRecord.normFiberLength(k,idx).*lceOptMdl;
+            fN   = benchRecord.normFiberForce(k,idx);
+            
+            expfN = interp1(expLceU,...
+                            expfNU,...
+                            lceN);
+            errV(k,idx) = expfN-fN;
+        end
+
+        if(simConfig.flag_debugFitting==1)
+    
+            figure(figDebugFitting);
+            subplot('Position',reshape(subPlotPanel(2,1,:),1,4));
+    
+            txtName = expTRSS2017.activeLengtheningData(idx).seriesName;
+            i0=strfind(txtName,'Exp.');
+            txtName(1,i0:4)='Sim.';
+    
+            plot(benchRecord.normFiberLength(:,idx).*lceOptMdl,...
+                 benchRecord.normCrossBridgeForceAlongTendon(:,idx),...
+                 '-','Color',lineColorsSimTRSS2017(idx,:),...
+                 'DisplayName',...
+                 txtName);
+            hold on;
+    
+    
+        end
+    end   
+    ratFibrilModelsUpd=ratFibrilModels;
+    flNError = sqrt(mean(mean(errV.^2)));
