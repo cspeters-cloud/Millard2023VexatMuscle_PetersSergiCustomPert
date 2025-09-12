@@ -11,8 +11,8 @@ clear all;
 %%
 % Parameters
 %%
-generatePlots           = 1;
-runSimulations          = 0;
+generatePlots           = 0;
+runSimulations          = 1;
 
 mapToEDLModel           = 1;
 makeFibrilModel         = 1;

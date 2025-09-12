@@ -23,10 +23,27 @@ modelConfig.muscleName       = 'EDL';
 modelConfig.experimentName   = 'TRSS2017';
 
 fittingConfig.numberOfBisections = 10;
+fittingConfig.idxFvKey = 3;
+fittingConfig.idxFlKey = 1;
 
 pubPlotOptions.useSmoothedStiffnessData=1;
 pubPlotOptions.plotRawStiffnessData=0;
 pubPlotOptions.stiffnessLowerForceBound = 0.05;
+
+pubPlotOptions.fceNMax   = 2.6;
+pubPlotOptions.kceNMax   = 6;
+pubPlotOptions.lceNMin   =0.6;
+pubPlotOptions.lceNMax = 1.45;
+
+%%
+% Analysis outputs
+%%
+nTrials = length(simConfig.trials);
+titinAnalysis(nTrials)=struct('lce',[],'fceN',[],'fxeN',[],'f2N',[],'k2N',[]);
+for idx=simConfig.trials
+    titinAnalysis(idx)= struct('lce',[],'fceN',[],'fxeN',[],'f2N',[],'k2N',[]);
+end
+
 %%
 % Set up the files
 %%
@@ -46,7 +63,7 @@ addpath( genpath(projectFolders.postprocessing) );
 % Plot parameters
 %%
 plotLayoutSettings = struct('numberOfHorizontalPlotColumns',  2,...
-                            'numberOfVerticalPlotRows',       4,...
+                            'numberOfVerticalPlotRows',       5,...
                             'flag_fixedPlotWidth',            1,...
                             'plotWidth',                      7,...
                             'plotHeight',                     7,...
@@ -60,7 +77,7 @@ plotHeight                    = plotLayoutSettings.plotHeight;
 flag_usingOctave              = plotLayoutSettings.flag_usingOctave;
 
 plotHorizMarginCm = 1.5;
-plotVertMarginCm  = 1.5;
+plotVertMarginCm  = 2.0;
 
 pageWidth   = (plotWidth+plotHorizMarginCm)*numberOfHorizontalPlotColumns...
                 +plotHorizMarginCm;
@@ -87,11 +104,11 @@ n=0.75;
 lineColors.exp(3,:) = [0,0,0].*(1-n)+[1,1,1].*n; 
 
 n=0;
-lineColors.simXE(1,:) = cs.red.*(1-n)+[1,1,1].*n;
+lineColors.simXE(1,:) = cs.grey;%cs.red.*(1-n)+[1,1,1].*n;
 n=0.25;
-lineColors.simXE(2,:) = cs.red.*(1-n)+[1,1,1].*n; 
+lineColors.simXE(2,:) = cs.grey;%cs.red.*(1-n)+[1,1,1].*n; 
 n=0.50;
-lineColors.simXE(3,:) = cs.red.*(1-n)+[1,1,1].*n;
+lineColors.simXE(3,:) = cs.grey;%cs.red.*(1-n)+[1,1,1].*n;
 
 n=0;
 lineColors.calcTitinF(1,:) = cs.blue.*(1-n)+[1,1,1].*n;
@@ -101,12 +118,32 @@ n=0.50;
 lineColors.calcTitinF(3,:) = cs.blue.*(1-n)+[1,1,1].*n;
 
 n=0;
-lineColors.calcTitinK(1,:) = cs.magenta.*(1-n)+[1,1,1].*n;
-n=0.33;
-lineColors.calcTitinK(2,:) = cs.magenta.*(1-n)+[1,1,1].*n; 
-n=0.66;
-lineColors.calcTitinK(3,:) = cs.magenta.*(1-n)+[1,1,1].*n;
+lineColors.calcTitinK(1,:) = lineColors.calcTitinF(1,:);
+n=0.25;
+lineColors.calcTitinK(2,:) = lineColors.calcTitinF(2,:); 
+n=0.50;
+lineColors.calcTitinK(3,:) = lineColors.calcTitinF(3,:);
 
+n=0;
+lineColors.simF(1,:) = cs.red.*(1-n)+[1,1,1].*n;
+n=0.25;
+lineColors.simF(2,:) = cs.red.*(1-n)+[1,1,1].*n; 
+n=0.50;
+lineColors.simF(3,:) = cs.red.*(1-n)+[1,1,1].*n;
+
+n=0;
+lineColors.simTitinF(1,:) = cs.magenta.*(1-n)+[1,1,1].*n;
+n=0.25;
+lineColors.simTitinF(2,:) = cs.magenta.*(1-n)+[1,1,1].*n; 
+n=0.50;
+lineColors.simTitinF(3,:) = cs.magenta.*(1-n)+[1,1,1].*n;
+
+n=0;
+lineColors.simTitinK(1,:) = lineColors.simTitinF(1,:);
+n=0.25;
+lineColors.simTitinK(2,:) = lineColors.simTitinF(2,:); 
+n=0.50;
+lineColors.simTitinK(3,:) = lineColors.simTitinF(3,:);
 
 %%
 % Load the models parameters
@@ -367,7 +404,8 @@ if(simConfig.runFitting==1)
     expfv.fvN   = [];
 
     for idxTrial = simConfig.trials
-        idxKey = expTRSS2017.activeLengtheningData(idxTrial).keyIndices(3); 
+        idxKey = expTRSS2017.activeLengtheningData(idxTrial).keyIndices(...
+                    fittingConfig.idxFvKey); 
         lce  = expTRSS2017.activeLengtheningData(idxTrial).x(idxKey,1);
         lceN = lce/lceOptMdl;
         fN0  = expTRSS2017.activeLengtheningData(idxTrial).y(1,1);
@@ -667,11 +705,6 @@ if(simConfig.generatePlots==1)
     %
     % Plot the force-length relation
     %
-    nTrials = length(simConfig.trials);
-    titinAnalysis(nTrials)=struct('lce',[],'fceN',[],'fxeN',[],'f2N',[],'k2N',[]);
-    for idx=simConfig.trials
-        titinAnalysis(idx)= struct('lce',[],'fceN',[],'fxeN',[],'f2N',[],'k2N',[]);
-    end
 
 
     expfl.lce = [];
@@ -699,12 +732,9 @@ if(simConfig.generatePlots==1)
                 
     end    
 
-    fceNMax   = 2.6;
-    kceNMax   = 6;
-    idxKceMin = 12;
-    lceNMin   =0.6;
-    lceNMax = 1.45;
-
+    %
+    % fal-fitting
+    %
     subplot('Position',reshape(subPlotPanel(1,1,:),1,4));
 
         curveFitted = ratFibrilModelsFitted(1).curves.activeForceLengthCurve;    
@@ -735,10 +765,13 @@ if(simConfig.generatePlots==1)
         xlabel('Norm. Length ($$\ell/\ell_o$$)');
         ylabel(expTRSS2017.activeLengtheningData(3).yName);
         title('Force-Length Relation Fitting');  
-        xlim([lceNMin,lceNMax]);
+        xlim([pubPlotOptions.lceNMin,pubPlotOptions.lceNMax]);
         box off;
         hold on;   
 
+    %
+    % fv-fitting
+    %        
     subplot('Position',reshape(subPlotPanel(1,2,:),1,4));
 
         plot(sampleFlNFitted.x,sampleFlNFitted.y,'-',...
@@ -770,7 +803,8 @@ if(simConfig.generatePlots==1)
                  'DisplayName','$$f^{EXP}$$ TRSS2017',...
                  'HandleVisibility',hdlVis);
             hold on; 
-            idxKey = expTRSS2017.activeLengtheningData(idx).keyIndices(1,3);
+            idxKey = expTRSS2017.activeLengtheningData(idx).keyIndices(...
+                        fittingConfig.idxFvKey);
             plot(expTRSS2017.activeLengtheningData(idx).x(idxKey)./lceOptMdl,...
                  expTRSS2017.activeLengtheningData(idx).y(idxKey),...
                  'x','Color',[0,0,0],...
@@ -781,9 +815,13 @@ if(simConfig.generatePlots==1)
         xlabel('Norm. Length ($$\ell/\ell_o$$)');
         ylabel(expTRSS2017.activeLengtheningData(3).yName);
         title('Force-Velocity Curve Fitting');  
-        xlim([lceNMin,lceNMax]);
+        xlim([pubPlotOptions.lceNMin,pubPlotOptions.lceNMax]);
         box off;
         hold on;           
+
+    %
+    % Experimental analysis plot
+    %
 
     subplot('Position',reshape(subPlotPanel(2,1,:),1,4));
         fill([min(sampleFlNFitted.x);...
@@ -817,11 +855,11 @@ if(simConfig.generatePlots==1)
     end
 
 
-
     for idx=simConfig.trials     
         subplot('Position',reshape(subPlotPanel(2,1,:),1,4)); 
 
-            idxKey=expTRSS2017.activeLengtheningData(idx).keyIndices(3);
+            idxKey=expTRSS2017.activeLengtheningData(idx).keyIndices(...
+                    fittingConfig.idxFvKey);
             lceNKey = expTRSS2017.activeLengtheningData(idx).x(idxKey)/lceOptMdl;
             fceNKey = expTRSS2017.activeLengtheningData(idx).y(idxKey); 
 
@@ -852,15 +890,10 @@ if(simConfig.generatePlots==1)
                 hdlVis='on';                
             end
             
-%             fill([lceNV(idxValid(1,1));lceNV(idxValid(end));fliplr(lceNV(idxValid)')'],...
-%                  [0;0;fliplr(fxeNV(idxValid)')'],...
-%                  lineColors.simXE(idx,:),...
-%                  'EdgeColor','none',...
-%                  'DisplayName','Crossbridges: $$f^{XE}=f^L(\ell)f^V(v)$$')
 
             plot(lceNV(idxValid),...
                 fxeNV(idxValid),...
-                 '-','Color',lineColors.simXE(idx,:),...
+                 '--','Color',lineColors.simXE(idx,:),...
                  'DisplayName','Crossbridges: $$f^{XE}_i=f^L(\ell)f^V(v)$$',...
                  'HandleVisibility',hdlVis);
             hold on;   
@@ -872,8 +905,10 @@ if(simConfig.generatePlots==1)
                 'VerticalAlignment','top');
             hold on
 
-            idxKeyF0 = expTRSS2017.activeLengtheningData(idx).keyIndices(1);
-            idxKeyF2 = expTRSS2017.activeLengtheningData(idx).keyIndices(3);
+            idxKeyF0 = expTRSS2017.activeLengtheningData(idx).keyIndices(...
+                            fittingConfig.idxFlKey);
+            idxKeyF2 = expTRSS2017.activeLengtheningData(idx).keyIndices(...
+                             fittingConfig.idxFvKey);
 
             plot(expTRSS2017.activeLengtheningData(idx).x(idxKeyF0)./lceOptMdl,...
                  expTRSS2017.activeLengtheningData(idx).y(idxKeyF0),...
@@ -884,14 +919,15 @@ if(simConfig.generatePlots==1)
                  'x','Color',[0,0,0],'HandleVisibility','off');
             hold on;
             
-            xlim([lceNMin,lceNMax]);
+            xlim([pubPlotOptions.lceNMin,pubPlotOptions.lceNMax]);
 
             box off;
 
 
         subplot('Position',reshape(subPlotPanel(2,1,:),1,4));                
 
-            idxKey=expTRSS2017.activeLengtheningData(idx).keyIndices(3);
+            idxKey=expTRSS2017.activeLengtheningData(idx).keyIndices(...
+                    fittingConfig.idxFvKey);
             lceNKey = expTRSS2017.activeLengtheningData(idx).x(idxKey)/lceOptMdl;
             fceNKey = expTRSS2017.activeLengtheningData(idx).y(idxKey);           
                   
@@ -935,12 +971,13 @@ if(simConfig.generatePlots==1)
                   
             hold on;
             box off;
-            xlim([lceNMin,lceNMax]);
-            ylim([0,fceNMax]);
+            xlim([pubPlotOptions.lceNMin,pubPlotOptions.lceNMax]);
+            ylim([0,pubPlotOptions.fceNMax]);
 
             xlabel('Norm. Length ($$\ell/\ell_o$$)');
             ylabel(expTRSS2017.activeLengtheningData(3).yName);
-            title('Estimated crossbridge and titin force distribution');  
+            title({'Estimated crossbridge and titin forces','during active-lengthening'});
+
             if(idx==3)
                 legend('Location','NorthWest');
             end
@@ -1014,11 +1051,14 @@ if(simConfig.generatePlots==1)
             title('Estimated titin force-length relation');  
             
             xlim([0,lceNSpan]);
-            ylim([0,fceNMax]);        
+            ylim([0,pubPlotOptions.fceNMax]);        
             if(idx==3)
                 legend('Location','NorthWest');
             end
         subplot('Position',reshape(subPlotPanel(3,2,:),1,4));
+        
+            idxKValid = find(titinAnalysis(idx).f2N >...
+                        pubPlotOptions.stiffnessLowerForceBound);
 
             if(pubPlotOptions.useSmoothedStiffnessData==1)
                 plot(titinAnalysis(idx).lceN(idxKValid(2:end))-titinAnalysis(idx).lceN(1,1), ...
@@ -1056,12 +1096,11 @@ if(simConfig.generatePlots==1)
                      'FontSize',8);
                 hold on;  
              
-
             end
             
             box off;
             xlim([0,lceNSpan]);
-            ylim([0,kceNMax]);
+            ylim([0,pubPlotOptions.kceNMax]);
 
             xlabel('Norm. Length Change $$(\ell/\ell_o)-\ell_i$$');
             ylabel('Norm. Slope $$(f/f_o)/(\ell/\ell_o)$$');
@@ -1071,6 +1110,239 @@ if(simConfig.generatePlots==1)
             end
 
     end
+end
+
+%
+% Generate plots that compare the simulation results to the experiments
+%
+if(simConfig.generatePlots==1)
+    load(fullfile(projectFolders.output_structs_TRSS2017,...
+                    'benchRecordVexat_TRSS2017_fitted.mat'));
+    tmp = load(fullfile(projectFolders.output_structs_FittedModels,...
+                        'ratTRSS2017EDLFibrilActiveTitinFitted.mat'));
+    ratFibrilModelsFitted=tmp.ratFibrilModelsFitted;
+
+
+    curveFitted = ratFibrilModelsFitted(1).curves.activeForceLengthCurve;    
+    sampleFlNFitted=calcBezierYFcnXCurveSampleVector(...
+                    curveFitted,100,curveFitted.xEnd);
+
+    subplot('Position',reshape(subPlotPanel(4,1,:),1,4));     
+        fill([min(sampleFlNFitted.x);...
+              max(sampleFlNFitted.x);...
+              fliplr(sampleFlNFitted.x')'],...
+              [0;...
+               0;...
+              fliplr(sampleFlNFitted.y')'],...
+              [1,1,1].*0.85,'EdgeAlpha',0,...
+              'HandleVisibility','off');
+        hold on; 
+
+    for idx=simConfig.trials     
+        hdlVis='off';
+        if(idx==1)
+            hdlVis = 'on';
+        end
+
+        plot(expTRSS2017.activeLengtheningData(idx).x./lceOptMdl,...
+             expTRSS2017.activeLengtheningData(idx).y,...
+             '-','Color',lineColors.exp(idx,:),...
+             'DisplayName','$$f^{EXP}$$ TRSS2017',...
+             'HandleVisibility',hdlVis);
+        hold on; 
+
+        hVis='off';
+        if(idx==1)
+            hVis='on';
+        end
+        plot(titinAnalysis(idx).lceN, ...
+             titinAnalysis(idx).f2N,...
+             '-','Color',lineColors.calcTitinF(idx,:),...
+             'DisplayName','Titin: $$f^T_i=f^{EXP}_i-f^{XE}_i$$',...
+             'HandleVisibility',hVis);
+
+        text(titinAnalysis(idx).lceN(end),...
+             titinAnalysis(idx).f2N(end),...
+             sprintf('%s%i%s','$$f^{T}_{',idx,'}$$'),...
+             'HorizontalAlignment','left',...
+             'VerticalAlignment','baseline',...
+             'FontSize',8);        
+        
+       plot( benchRecordFitted.normFiberLength(:,idx), ...
+             benchRecordFitted.normFiberForce(:,idx),...
+             '-','Color',lineColors.simF(idx,:),...
+             'DisplayName','Sim: $$f^{*}_i$$',...
+             'HandleVisibility',hVis);
+
+       hold on;
+
+       plot( benchRecordFitted.normFiberLength(:,idx), ...
+             benchRecordFitted.normDistalTitinForce(:,idx),...
+             '-','Color',lineColors.simTitinF(idx,:),...
+             'DisplayName','Sim: $$f^{T*}_i$$',...
+             'HandleVisibility',hVis);
+
+       hold on;
+
+    end
+
+
+    box off;
+    xlim([pubPlotOptions.lceNMin,pubPlotOptions.lceNMax]);
+    ylim([0,pubPlotOptions.fceNMax]); 
+    xlabel('Norm. Length ($$\ell/\ell_o$$)');
+    ylabel(expTRSS2017.activeLengtheningData(3).yName);
+    title({'Simulated and estimated crossbridge','and titin forces during active-lengthening'});
+
+
+    subplot('Position',reshape(subPlotPanel(5,1,:),1,4));     
+
+
+        for idx=simConfig.trials
+
+            plot(titinAnalysis(idx).lceN-titinAnalysis(idx).lceN(1,1), ...
+                 titinAnalysis(idx).f2N,...
+                 '-','Color',lineColors.calcTitinF(idx,:),...
+                 'DisplayName',...
+                 sprintf('%s%i%s','$$f^{T}_{',idx,'}$$'));
+            hold on;
+
+            text(lceNSpan,titinAnalysis(idx).f2N(end),...
+                 sprintf('%1.1f%s',titinAnalysis(idx).f2N(end),'$$f_o$$'),...
+                 'HorizontalAlignment','right',...
+                 'VerticalAlignment','bottom',...
+                 'FontSize',8);
+            hold on;
+
+        end
+
+        for idx=simConfig.trials
+
+           
+
+           plot( benchRecordFitted.normFiberLength(:,idx)...
+                  -benchRecordFitted.normFiberLength(1,idx), ...
+                 benchRecordFitted.normDistalTitinForce(:,idx),...
+                 '-','Color',lineColors.simTitinF(idx,:),...
+                 'DisplayName',sprintf('%s%i%s','Sim: $$f^{T*}_',idx,'$$'),...
+                 'HandleVisibility','on');
+
+           hold on;            
+
+           lceNSpan = benchRecordFitted.normFiberLength(end,idx)...
+                     -benchRecordFitted.normFiberLength(1,idx);
+           text(lceNSpan,...
+                benchRecordFitted.normDistalTitinForce(end,idx),...
+                 sprintf('%1.1f%s',benchRecordFitted.normDistalTitinForce(end,idx),'$$f_o$$'),...
+                 'HorizontalAlignment','left',...
+                 'VerticalAlignment','top',...
+                 'FontSize',8);
+           hold on;
+
+
+        end    
+
+    box off;
+    xlim([0,lceNSpan]);
+    ylim([0,pubPlotOptions.fceNMax]);
+
+    xlabel('Norm. Length Change $$(\ell/\ell_o)-\ell_i$$');
+    ylabel('Norm. Force ($$f/f_o$$)');
+    title('Estimated and simulated titin force-length relation');  
+
+    legend('Location','NorthWest');
+
+
+    subplot('Position',reshape(subPlotPanel(5,2,:),1,4));     
+
+
+    for idx=simConfig.trials
+
+        idxKValid = find(titinAnalysis(idx).f2N >...
+                    pubPlotOptions.stiffnessLowerForceBound);
+
+        if(pubPlotOptions.useSmoothedStiffnessData==1)
+            plot(titinAnalysis(idx).lceN(idxKValid(2:end))-titinAnalysis(idx).lceN(1,1), ...
+                 titinAnalysis(idx).k2NS(idxKValid(2:end)),...
+                 '-','Color',lineColors.calcTitinK(idx,:),...
+                 'DisplayName',...
+                 sprintf('%s%i%s','$$k^{T}_{',idx,'}$$'));
+            hold on;
+            text(lceNSpan,titinAnalysis(idx).k2NS(end),...
+                 sprintf('%1.1f',titinAnalysis(idx).k2NS(end)),...
+                 'HorizontalAlignment','right',...
+                 'VerticalAlignment','bottom',...
+                 'FontSize',8);
+            hold on;                
+        end
+        if(pubPlotOptions.useSmoothedStiffnessData==0)
+
+            seriesColor = lineColors.calcTitinK(idx,:);
+
+            plot(titinAnalysis(idx).lceN(idxKValid)-titinAnalysis(idx).lceN(1,1), ...
+                 titinAnalysis(idx).k2N(idxKValid),...
+                 '-','Color',seriesColor,...
+                 'DisplayName',...
+                 sprintf('%s: %1.1f %s','$$\ell_i$$',...
+                        titinAnalysis(idx).lceN(1,1),'$$\ell_o$$'));
+            hold on;
+            text(lceNSpan,titinAnalysis(idx).k2N(end),...
+                 sprintf('%1.1f%s',titinAnalysis(idx).k2N(end),'$$f_o$$'),...
+                 'HorizontalAlignment','right',...
+                 'VerticalAlignment','bottom',...
+                 'FontSize',8);
+            hold on;  
+         
+        end
+    end
+
+    for idx=simConfig.trials
+
+       k2NSim = calcCentralDifferenceDataSeries(...
+                    benchRecordFitted.normFiberLength(:,idx),...
+                    benchRecordFitted.normDistalTitinForce(:,idx));
+
+       k2NSim(isnan(k2NSim)) = 0;
+       k2NSim(isinf(k2NSim)) = 0;
+       
+
+       plot( benchRecordFitted.normFiberLength(:,idx)...
+              -benchRecordFitted.normFiberLength(1,idx), ...
+             k2NSim,...
+             '-','Color',lineColors.simTitinK(idx,:),...
+             'DisplayName',sprintf('%s%i%s','Sim: $$k^{T*}_',idx,'$$'),...
+             'HandleVisibility','on');
+
+       hold on;            
+
+       lceNSpan = benchRecordFitted.normFiberLength(end,idx)...
+                 -benchRecordFitted.normFiberLength(1,idx);
+
+       text(lceNSpan,...
+            k2NSim(end),...
+             sprintf('%1.1f%s',k2NSim(end),'$$k_o$$'),...
+             'HorizontalAlignment','left',...
+             'VerticalAlignment','top',...
+             'FontSize',8);
+       hold on;
+
+    end    
+
+    box off;
+    xlim([0,lceNSpan]);
+    ylim([0,pubPlotOptions.kceNMax]);
+
+    xlabel('Norm. Length Change $$(\ell/\ell_o)-\ell_i$$');
+    ylabel('Norm. Slope $$(f/f_o)/(\ell/\ell_o)$$');
+    title('Estimated titin stiffness-length relation');  
+    if(idx==3)
+        legend('Location','NorthWest');
+    end
+
+
+end
+
+if(simConfig.generatePlots==1)
     figure(figPub);    
     configPlotExporter;
     filePath = fullfile(projectFolders.output_plots_TRSS2017,...
