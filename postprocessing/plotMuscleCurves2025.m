@@ -34,8 +34,12 @@ function [success] = plotMuscleCurves2025( ...
 %%
 % Series colors
 %%
-  n = 1-((trialId-1)/2);
-  
+  if(trialId==0)
+    n=0;
+  else
+    n = 1-((trialId-1)/2);
+  end
+
   colorTitin = [1,0,1].*n + ([1,0,1].*0.25).*(1-n);
   colorTitinLight = colorTitin.*0.1 + [1,1,1].*0.9;  
 

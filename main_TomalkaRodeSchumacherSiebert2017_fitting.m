@@ -11,9 +11,11 @@ clear all;
 %%
 % Parameters
 %%
-simConfig.runFitting              = 0;
+simConfig.runFitting              = 1;
 simConfig.generatePlots           = 1;
 simConfig.trials                  = [1,2,3];
+simConfig.defaultTrialId          = 0;
+simConfig.useDefaultModel         = 1;
 simConfig.flag_debugFitting       = 1;
 
 
@@ -22,9 +24,22 @@ modelConfig.wlcOption        = ''; %WLC or ''
 modelConfig.muscleName       = 'EDL';
 modelConfig.experimentName   = 'TRSS2017';
 
+fittingConfig.fitFl             =0;
+fittingConfig.fitFv             =0;
+fittingConfig.fitTimeConstant   =0;
+fittingConfig.fitKx             =0;
+fittingConfig.fitQ              =1;
+fittingConfig.fitf1HNPreload    =1;
+
 fittingConfig.numberOfBisections = 10;
 fittingConfig.idxFvKey = 3;
 fittingConfig.idxFlKey = 1;
+fittingConfig.titin.trials = [3]; 
+    % [1]    : will fit just trial 1
+    % [1,2,3]: will individually fit to trials 1,2,3
+fittingConfig.titin.applyToAllTrials = 1;
+    %If a fittingConfig.titin.trials is a single trial, then setting
+    %this flag to 1 will apply the fitted parameters to all other trials
 
 pubPlotOptions.useSmoothedStiffnessData=1;
 pubPlotOptions.plotRawStiffnessData=0;
@@ -168,13 +183,21 @@ for idxTrial = simConfig.trials
                             'curves',[],...
                             'fitting',[]);
     
-    fileName = [    'rat',modelConfig.experimentName,...
-                    modelConfig.muscleName,...
-                    modelConfig.fibrilOption,...
-                    'ActiveTitin',...
-                    modelConfig.wlcOption,...
-                    '_',num2str(idxTrial),'.mat'];
-
+    if(simConfig.useDefaultModel==1)
+        fileName = [    'rat',modelConfig.experimentName,...
+                        modelConfig.muscleName,...
+                        modelConfig.fibrilOption,...
+                        'ActiveTitin',...
+                        modelConfig.wlcOption,...
+                        '_',num2str(simConfig.defaultTrialId),'.mat'];        
+    else
+        fileName = [    'rat',modelConfig.experimentName,...
+                        modelConfig.muscleName,...
+                        modelConfig.fibrilOption,...
+                        'ActiveTitin',...
+                        modelConfig.wlcOption,...
+                        '_',num2str(idxTrial),'.mat'];
+    end
     filePathRatMuscle = ...
         fullfile(projectFolders.output_structs_FittedModels,fileName);
 
@@ -234,7 +257,11 @@ fidFitting = [];
 % Fitting the active-force-length relaton
 %%
 
-if(simConfig.runFitting==1)
+if(simConfig.runFitting==1 && fittingConfig.fitFl==1)
+
+    %%
+    % fal fitting
+    %%
     ratFibrilModelsFitted=ratFibrilModels;
 
     fidFitting = fopen(fullfile(projectFolders.output_structs_TRSS2017,...
@@ -387,7 +414,10 @@ if(simConfig.runFitting==1)
 
 end
 
-if(simConfig.runFitting==1)
+if(simConfig.runFitting==1 && fittingConfig.fitFv==1)
+    %%
+    % fv fitting
+    %%
 
     lceOptMdl   = ratFibrilModelsFitted(1).musculotendon.optimalFiberLength;
     vmax        = ratFibrilModelsFitted(1).musculotendon.maximumNormalizedFiberVelocity;
@@ -516,8 +546,8 @@ end
 %%
 % Fitting the properties of the model for the very first 100 ms of data
 %%
-if(simConfig.runFitting==1)
 
+if(simConfig.runFitting==1 && fittingConfig.fitTimeConstant==1)
     fittingFraction = 1/8;
     npts = round(200*fittingFraction);
 
@@ -604,7 +634,10 @@ if(simConfig.runFitting==1)
     end
     fprintf('%1.2e\tfitting: sliding time-constant (end)\n',bestError);
     fprintf('%e\t sliding-time constant scaling (end)\n\n',bestValue);
+end
 
+
+if(simConfig.runFitting==1 && fittingConfig.fitKx==1)
     %
     % Scale the stiffness and cross-bridge damping
     %
@@ -685,6 +718,101 @@ if(simConfig.runFitting==1)
 
     fclose(fidFitting);    
 
+end
+
+%%
+% Fit the parameters of titin to get the closest match possible during
+% the trial. Here we will fit two parameters:
+%
+% Q : the point within the PEVK segment that attaches to actin. A value of
+%     0 corresponds to the N2A epitope (the most proximal end) while a 
+%     value 1 corresponds to the most distal end of the PEVK segment
+%
+% f1HNPreload: the preload force that the proximal segment develops
+%
+% Unlike the previous fitting routines, here we need to:
+% 1. Fit to one of the trials, and then apply the parameters to all
+% 2. Individually fit each trial
+%%
+
+
+if(simConfig.runFitting==1 && fittingConfig.fitQ==1)
+    %
+    % Solve for Q to best fit the average slope of the force development
+    %
+    flagFirstLoop=1;
+    flagDebug=1;
+    simConfigTmp = simConfig;
+    figDebugFittingQ=figure;
+
+    for idxTrial = fittingConfig.titin.trials
+
+        Q = 0.5;
+        QDelta = 0.25;
+
+        idx1 = length(expTRSS2017.activeLengtheningData(idxTrial).x);
+
+        x0 = expTRSS2017.activeLengtheningData(idxTrial).x(1,1);
+        x1 = expTRSS2017.activeLengtheningData(idxTrial).x(end);
+        xMid= 0.5*(x0+x1);
+        idx0 = min(find(expTRSS2017.activeLengtheningData(idxTrial).x > xMid));
+
+        expX = expTRSS2017.activeLengtheningData(idxTrial).x(idx0:idx1);
+        expY = expTRSS2017.activeLengtheningData(idxTrial).y(idx0:idx1);
+
+        A = [expX, ones(size(expX))];
+        b = expY;
+        p = (A'*A)\(A'*b);
+        expSlope = p(1,1);
+
+        xLine = expX;
+        yLine = [xLine, ones(size(xLine))]*p;
+
+        if(flagDebug==1 && flagFirstLoop==1)
+            figExpSlope = figure;
+            plot(expTRSS2017.activeLengtheningData(idxTrial).x,...
+                 expTRSS2017.activeLengtheningData(idxTrial).y,'-k');
+            hold on;
+            plot(expX,expY,'xk');
+            hold on;
+            plot(xLine,yLine,'-b');
+            xlabel('X');
+            ylabel('Y');
+        end
+
+        lopt=ratFibrilModels(idxTrial).musculotendon.optimalFiberLength;
+        fiso=ratFibrilModels(idxTrial).musculotendon.fiso;
+
+        optParams.name = 'Q';
+        optParams.value=   Q;
+        simConfigTmp.trials = [idxTrial];
+        simConfigTmp.flag_debugFitting=0;
+        fittingFraction=1;
+        npts=100;
+        [flNError,figDebugFittingQ,ratFibrilModelsUpd,benchRecord] =...
+            calcErrorTRSS2017RampFraction(optParams,...
+                       fittingFraction, npts, ...
+                       ratFibrilModels, expTRSS2017,simConfigTmp,...
+                       figDebugFittingQ,subPlotPanel,lineColors.simTitinK);
+        disp('You are here');
+        %for i=1:1:fittingConfig.numberOfBisections
+            
+
+
+        %end
+        flagFirstLoop=0;
+    end
+    
+
+end
+
+%
+% Solve for f1HNPreload: the preload that the proximal segment of titin
+%                        develops to best match the observed
+%                        active-lengthening force profile.
+%
+if(simConfig.runFitting==1 && fittingConfig.fitf1HNPreload == 1)
+    here=1;
 end
 
 %%

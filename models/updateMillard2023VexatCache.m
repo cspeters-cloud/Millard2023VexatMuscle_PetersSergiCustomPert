@@ -249,6 +249,7 @@ if(flag_evaluateInitializationFunctions > 0)
             %This loop iterates over the length of the titin segments
 
             numMaxBisections=modelConstants.iterMax;
+            f1HNPreload = modelCache.f1HNPreload;
             lTitinFreeH = (lceHN-lTitinFixedHN)*lceN_lce;
             argBest = 0.5;
             errBest =-Inf;
@@ -286,7 +287,8 @@ if(flag_evaluateInitializationFunctions > 0)
                 l2H       = lce*lce_lceH - (l1H+lTitinFixedHN*lceOpt);
                 l1HN      = l1H*li_liN;
                 l2HN      = l2H*li_liN;
-                f1kHN     = scaleTitinProximal*calcF1HDer(l1HN,0);
+                f1kHN     = scaleTitinProximal ...
+                            *(calcF1HDer(l1HN,0)+modelCache.f1HNPreload );
                 f2kHN     = scaleTitinDistal*calcF2HDer(l2HN,0);    
             
                 errSoln = abs(f2kHN-f1kHN);
@@ -316,7 +318,8 @@ if(flag_evaluateInitializationFunctions > 0)
             l2H       = lce*lce_lceH - (l1H+lTitinFixedHN*lceOpt);
             l1HN      = l1H*li_liN;
             l2HN      = l2H*li_liN;
-            f1kHN     = scaleTitinProximal*calcF1HDer(l1HN,0);
+            f1kHN     = scaleTitinProximal ... 
+                         *(calcF1HDer(l1HN,0)+modelCache.f1HNPreload);
             f2kHN     = scaleTitinDistal*calcF2HDer(l2HN,0);  
 
 
@@ -498,8 +501,9 @@ if(flag_evaluateInitializationFunctions > 0)
             l2H       = lce*lce_lceH - (l1H+lTitinFixedHN*lceOpt);
             l1HN      = l1H*li_liN;
             l2HN      = l2H*li_liN;
-            f1kHN     = calcF1HDer(l1HN,0);
-            f2kHN     = calcF2HDer(l2HN,0);    
+            f1kHN     = scaleTitinProximal ...
+                          * (calcF1HDer(l1HN,0)+modelCache.f1HNPreload);
+            f2kHN     = scaleTitinDistal*calcF2HDer(l2HN,0);    
         
             errI(2,1) = f2kHN-f1kHN;
             modelCache.l1H=l1H;
@@ -592,7 +596,8 @@ if(flag_evaluateInitializationFunctions > 0)
             l2H       = lce*lce_lceH - (l1H+lTitinFixedHN*lceOpt);
             l1HN      = l1H*li_liN;
             l2HN      = l2H*li_liN;
-            f1kHN     = scaleTitinProximal * calcF1HDer(l1HN,0);
+            f1kHN     = scaleTitinProximal ...
+                        * (calcF1HDer(l1HN,0)+modelCache.f1HNPreload);
             f2kHN     = scaleTitinDistal   * calcF2HDer(l2HN,0);    
         
             errI(2,1) = f2kHN-f1kHN;
@@ -781,7 +786,8 @@ if(flag_evaluateInitializationFunctions == 0)
       kxHNN     = a*flN*kAXHN;
       betaxHNN  = a*flN*betaAXHN;
     
-      f1kHN     = scaleTitinProximal * calcF1HDer(l1HN,0);
+      f1kHN     = scaleTitinProximal ...
+                  * (calcF1HDer(l1HN,0)+modelCache.f1HNPreload);
       f2kHN     = scaleTitinDistal   * calcF2HDer(l2HN,0);
       k1HNN     = scaleTitinProximal * calcF1HDer(l1HN,1);
       k2HNN     = scaleTitinDistal   * calcF2HDer(l2HN,1);

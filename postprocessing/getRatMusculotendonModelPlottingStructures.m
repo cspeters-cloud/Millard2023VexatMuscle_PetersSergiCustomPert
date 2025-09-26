@@ -7,9 +7,9 @@ function [dataToPlot, dataIndexes, plotSettings] = ...
 titleMuscleName = '';
 switch muscleName
     case 'SOL'
-        titleMuscleName = 'Rat Soleus';
+        titleMuscleName = 'rat soleus fiber';
     case 'EDL'
-        titleMuscleName = 'Rat EDL';        
+        titleMuscleName = 'rat EDL fiber';        
     otherwise assert(0,'Error muscleName not recognized');
 end
 
@@ -31,8 +31,10 @@ plotSettings(idx).xlim = [1.28,4.44];
 plotSettings(idx).ylim = [0,1.6];
 plotSettings(idx).xlabel = 'Length ($$\mu$$m)';
 plotSettings(idx).ylabel = 'Norm. Force ($$f/f_o^M$$)';
-plotSettings(idx).title = {[titleMuscleName,' $$f^L(\ell^M)$$']};
-plotSettings(idx).legendLocation = 'NorthWest';
+plotSettings(idx).title = ...
+    {'A. Force-length relations of the contractile',...
+    [' element and titin (',titleMuscleName,')']};
+plotSettings(idx).legendLocation = 'NorthEast';
 plotSettings(idx).xticks = [1.28,1.81,2.53];
 plotSettings(idx).yticks = [0.00,0.54,1.00];
 
@@ -45,7 +47,7 @@ plotSettings(idx).xlim = [];
 plotSettings(idx).ylim = [0,1.6];
 plotSettings(idx).xlabel = 'Velocity ($$\ell^M/\ell_o^M$$)';
 plotSettings(idx).ylabel = 'Norm. Force ($$f/f_o^M$$)';
-plotSettings(idx).title = {[titleMuscleName,' $$f^{V}(v^M/v^M_{max})$$']};
+plotSettings(idx).title = {['B. Force-velocity relation (',titleMuscleName,')'],''};
 plotSettings(idx).legendLocation = 'SouthEast';
 plotSettings(idx).xticks = [];
 plotSettings(idx).yticks = [0,1,1.24,1.44];
@@ -132,8 +134,8 @@ dataToPlot(idx).LineColor=colorSW1992;
 dataToPlot(idx).Mark='o';
 dataToPlot(idx).MarkerFaceColor=[1,1,1];
 dataToPlot(idx).MarkerEdgeColor=colorSW1992;
-dataToPlot(idx).MarkerSize=5;
-dataToPlot(idx).DisplayName='SW1982 (F)';
+dataToPlot(idx).MarkerSize=3;
+dataToPlot(idx).DisplayName='SW1982 F';
 dataToPlot(idx).HandleVisibility = 'on';
 dataToPlot(idx).enablePlot = 1;
 
@@ -149,10 +151,10 @@ dataToPlot(idx).y = [];
 dataToPlot(idx).type = 'Exp';
 dataToPlot(idx).LineColor=colorSW1992;
 dataToPlot(idx).Mark='o';
-dataToPlot(idx).MarkerFaceColor=[1,1,1];
+dataToPlot(idx).MarkerFaceColor=colorSW1992;
 dataToPlot(idx).MarkerEdgeColor=colorSW1992;
-dataToPlot(idx).MarkerSize=5;
-dataToPlot(idx).DisplayName='SW1982 (F)';
+dataToPlot(idx).MarkerSize=3;
+dataToPlot(idx).DisplayName='SW1982 F';
 dataToPlot(idx).HandleVisibility = 'off';
 dataToPlot(idx).enablePlot = 1;
 
@@ -167,13 +169,13 @@ dataToPlot(idx).x = [];
 dataToPlot(idx).y = [];
 dataToPlot(idx).type = 'Exp';
 dataToPlot(idx).LineColor=colorZHGL1995;
-dataToPlot(idx).Mark='o';
-dataToPlot(idx).MarkerFaceColor=colorZHGL1995;
+dataToPlot(idx).Mark='s';
+dataToPlot(idx).MarkerFaceColor=[1,1,1];
 dataToPlot(idx).MarkerEdgeColor=colorZHGL1995;
-dataToPlot(idx).MarkerSize=5;
-dataToPlot(idx).DisplayName='ZHGL1995 (B)';
+dataToPlot(idx).MarkerSize=3;
+dataToPlot(idx).DisplayName='ZHGL1995-B';
 dataToPlot(idx).HandleVisibility = 'on';
-dataToPlot(idx).enablePlot = 1;
+dataToPlot(idx).enablePlot = 0;
 
 dataIndexes.ZHGL1995_fl         = idx;
 
@@ -186,11 +188,11 @@ dataToPlot(idx).x = [];
 dataToPlot(idx).y = [];
 dataToPlot(idx).type = 'Exp';
 dataToPlot(idx).LineColor=colorTRSS2017;
-dataToPlot(idx).Mark='.';
-dataToPlot(idx).MarkerFaceColor=colorTRSS2017;
+dataToPlot(idx).Mark='s';
+dataToPlot(idx).MarkerFaceColor=[1,1,1];
 dataToPlot(idx).MarkerEdgeColor=colorTRSS2017;
-dataToPlot(idx).MarkerSize=5;
-dataToPlot(idx).DisplayName='TRSS2017 (F)';
+dataToPlot(idx).MarkerSize=3;
+dataToPlot(idx).DisplayName='TRSS2017 F';
 dataToPlot(idx).HandleVisibility = 'on';
 dataToPlot(idx).enablePlot = 1;
 
@@ -206,11 +208,11 @@ dataToPlot(idx).x = [];
 dataToPlot(idx).y = [];
 dataToPlot(idx).type = 'Exp';
 dataToPlot(idx).LineColor=colorTRSS2017;
-dataToPlot(idx).Mark='.';
+dataToPlot(idx).Mark='s';
 dataToPlot(idx).MarkerFaceColor=colorTRSS2017;
 dataToPlot(idx).MarkerEdgeColor=colorTRSS2017;
-dataToPlot(idx).MarkerSize=5;
-dataToPlot(idx).DisplayName='TRSS2017 (F)';
+dataToPlot(idx).MarkerSize=3;
+dataToPlot(idx).DisplayName='TRSS2017 F';
 dataToPlot(idx).HandleVisibility = 'off';
 dataToPlot(idx).enablePlot = 1;
 
@@ -248,7 +250,7 @@ dataToPlot(idx).Mark='-';
 dataToPlot(idx).MarkerFaceColor=modelColors.cyan;
 dataToPlot(idx).MarkerEdgeColor=modelColors.cyan;
 dataToPlot(idx).MarkerSize=5;
-dataToPlot(idx).DisplayName='$$f^{Ti}(\ell^M)$$ (passive)';
+dataToPlot(idx).DisplayName='$$f^{2}(\ell^M)$$ passive';
 dataToPlot(idx).HandleVisibility = 'on';
 dataToPlot(idx).enablePlot = 1;
 
@@ -267,7 +269,7 @@ dataToPlot(idx).Mark='-';
 dataToPlot(idx).MarkerFaceColor=modelColors.magenta;
 dataToPlot(idx).MarkerEdgeColor=modelColors.magenta;
 dataToPlot(idx).MarkerSize=5;
-dataToPlot(idx).DisplayName='$$f^{Ti}(\ell^M)$$ (active)';
+dataToPlot(idx).DisplayName='$$f^{2}(\ell^M)$$ active';
 dataToPlot(idx).HandleVisibility = 'on';
 dataToPlot(idx).enablePlot = 1;
 

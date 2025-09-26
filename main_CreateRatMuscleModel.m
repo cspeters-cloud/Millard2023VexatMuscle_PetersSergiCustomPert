@@ -21,7 +21,7 @@ addpath( genpath(projectFolders.postprocessing) );
 validExperiments = {'TRSS2017','TWHSS2021','WTRS2024'};
 experimentName = validExperiments{1};
 
-trialId = 3;
+trialId = 0;
 
 
 %%
@@ -266,6 +266,8 @@ switch experimentName
 
 
         switch trialId
+            case 0
+                setSarcomereProperties.normPevkToActinAttachmentPoint   = 0.75;                 
             case 1
                 setSarcomereProperties.normPevkToActinAttachmentPoint   = 0.60; 
             case 2
@@ -833,14 +835,29 @@ if(flag_makeDetailedExpDataPlots==1)
             row=plotDataConfig(i).row;
             col=plotDataConfig(i).col;
             subplot('Position', reshape(subPlotPanel(row,col,:),1,4));
+
+            if(strcmp(plotDataConfig(i).Mark,'-') ...
+                    || strcmp(plotDataConfig(i).Mark,'--') ...
+                    || strcmp(plotDataConfig(i).Mark,'.-'))
+
+                plot(plotDataConfig(i).x,...
+                     plotDataConfig(i).y,...
+                     '-',...
+                     'LineWidth',2.0,...
+                     'Color',[1,1,1],...
+                     'HandleVisibility','off');
+                hold on;
+            end
+
             plot(plotDataConfig(i).x,...
                  plotDataConfig(i).y,...
                  plotDataConfig(i).Mark,...
+                 'LineWidth',1.,...
                  'Color',plotDataConfig(i).LineColor,...
                  'MarkerFaceColor',plotDataConfig(i).MarkerFaceColor,...
                  'MarkerEdgeColor',plotDataConfig(i).MarkerEdgeColor,...
                  'MarkerSize',plotDataConfig(i).MarkerSize,...
-                 'DisplayName',plotDataConfig(i).DisplayName,...
+                 'DisplayName',[plotDataConfig(i).DisplayName,' (',plotDataConfig(i).type,')'],...
                  'HandleVisibility',plotDataConfig(i).HandleVisibility);
             hold on;
         end
@@ -866,9 +883,8 @@ if(flag_makeDetailedExpDataPlots==1)
         xlabel(plotSettings(i).xlabel);
         ylabel(plotSettings(i).ylabel);    
     
-        titleStr = plotSettings(i).title{:};
     
-        title(titleStr);            
+        title(plotSettings(i).title);            
     end
     
     
