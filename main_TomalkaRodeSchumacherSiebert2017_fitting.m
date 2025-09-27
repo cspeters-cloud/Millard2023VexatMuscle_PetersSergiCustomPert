@@ -24,19 +24,23 @@ modelConfig.wlcOption        = ''; %WLC or ''
 modelConfig.muscleName       = 'EDL';
 modelConfig.experimentName   = 'TRSS2017';
 
-fittingConfig.fitFl             =0;
-fittingConfig.fitFv             =0;
-fittingConfig.fitTimeConstant   =0;
-fittingConfig.fitKx             =0;
+fittingConfig.fitFl             =1;
+fittingConfig.fitFv             =1;
+fittingConfig.fitTimeConstant   =1;
+fittingConfig.fitKx             =1;
 fittingConfig.fitQ              =1;
 fittingConfig.fitf1HNPreload    =1;
 
 fittingConfig.numberOfBisections = 10;
 fittingConfig.idxFvKey = 3;
 fittingConfig.idxFlKey = 1;
-fittingConfig.titin.trials = [3]; 
-    % [1]    : will fit just trial 1
-    % [1,2,3]: will individually fit to trials 1,2,3
+fittingConfig.titin.trials = [1,2,3]; 
+% [1]    : will fit just trial 1
+% [1,2,3]: will fit to trials 1,2,3
+fittingConfig.titin.individuallyFit = 0; 
+% 0: a set of titin parameters that best fits all trials will be solved
+% 1: a set of titin parameters the best fits each individual trial will be solved  
+%
 fittingConfig.titin.applyToAllTrials = 1;
     %If a fittingConfig.titin.trials is a single trial, then setting
     %this flag to 1 will apply the fitted parameters to all other trials
@@ -250,8 +254,21 @@ end
 expTRSS2017 = expData(expIndices.index_TRSS2017);
 
 
-ratFibrilModelsFitted = [];
+ratFibrilModelsFitted = ratFibrilModels;
 fidFitting = [];
+
+fittingTrialsStr = '';
+for i=1:1:length(fittingConfig.titin.trials)
+    fittingTrialsStr = [fittingTrialsStr,num2str(fittingConfig.titin.trials(1,i))];
+end
+if(fittingConfig.titin.individuallyFit==1)
+    fittingTrialsStr = [fittingTrialsStr,'i'];
+end
+
+if(simConfig.runFitting==1)
+    fidFitting = fopen(fullfile(projectFolders.output_structs_TRSS2017,...
+                    ['fittingLog_',fittingTrialsStr,'.txt']),'w');
+end
 
 %%
 % Fitting the active-force-length relaton
@@ -262,10 +279,6 @@ if(simConfig.runFitting==1 && fittingConfig.fitFl==1)
     %%
     % fal fitting
     %%
-    ratFibrilModelsFitted=ratFibrilModels;
-
-    fidFitting = fopen(fullfile(projectFolders.output_structs_TRSS2017,...
-                        'fittingLog.txt'),'w');
 
     figDebugFitting = figure;
 
@@ -361,7 +374,7 @@ if(simConfig.runFitting==1 && fittingConfig.fitFl==1)
     for i=simConfig.trials
 
         flag_compensateForCrossbridgeStiffness=0;
-        [flNError, falCurve] = ...
+        [optError, falCurve] = ...
             calcErrorTRSS2017ForceLengthRelationAscendingLimb(...
                 argBest, expfl.lce,expfl.fN,...
                 ratFibrilModelsFitted(1).sarcomere,...
@@ -371,7 +384,7 @@ if(simConfig.runFitting==1 && fittingConfig.fitFl==1)
         ratFibrilModelsFitted(i).curves.activeForceLengthCurve=falCurve;
 
         flag_compensateForCrossbridgeStiffness=1;
-        [flNErrorCal, falCurveCal] = ...
+        [optErrorCal, falCurveCal] = ...
             calcErrorTRSS2017ForceLengthRelationAscendingLimb(...
                 argBest, expfl.lce,expfl.fN,...
                 ratFibrilModelsFitted(1).sarcomere,...
@@ -634,6 +647,8 @@ if(simConfig.runFitting==1 && fittingConfig.fitTimeConstant==1)
     end
     fprintf('%1.2e\tfitting: sliding time-constant (end)\n',bestError);
     fprintf('%e\t sliding-time constant scaling (end)\n\n',bestValue);
+
+    
 end
 
 
@@ -695,29 +710,6 @@ if(simConfig.runFitting==1 && fittingConfig.fitKx==1)
     fprintf(fidFitting,'%e\t impedance scaling (end)\n\n',bestValue);
     
 
-    save(fullfile(projectFolders.output_structs_FittedModels,...
-            'ratTRSS2017EDLFibrilActiveTitinFitted.mat'),...
-            'ratFibrilModelsFitted','-mat');
-
-    %
-    % Plot the fitted results
-    %    
-    fullRampFraction=1;
-    npts = round(200*fullRampFraction);
-    simConfig.flag_debugFitting=1;
-
-    [errorVal,figDebugFitting,ratFibrilModelsUpd,benchRecordFitted] ...
-        = calcErrorTRSS2017RampFraction(optParams,...
-               fullRampFraction, npts, ...
-               ratFibrilModelsFitted, expTRSS2017,simConfig,...
-               figDebugFitting,subPlotPanel,lineColors.simXE);
-
-    save(fullfile(projectFolders.output_structs_TRSS2017,...
-            'benchRecordVexat_TRSS2017_fitted.mat'),...
-            'benchRecordFitted','-mat');
-
-    fclose(fidFitting);    
-
 end
 
 %%
@@ -735,85 +727,369 @@ end
 % 2. Individually fit each trial
 %%
 
+if(simConfig.runFitting==1)
+    optParams.exp(3) = struct('name','','value',0,'x',[],'y',[],'dydx',[],...
+                              'xLine',[],'yLine',[]);
+    
+    for idxTrial=simConfig.trials
+        idx1 = length(expTRSS2017.activeLengtheningData(idxTrial).x);
+
+        x0 = expTRSS2017.activeLengtheningData(idxTrial).x(1,1);
+        x1 = expTRSS2017.activeLengtheningData(idxTrial).x(end);
+        xStart= x0 + 0.2*(x1-x0);
+        idx0 = find(expTRSS2017.activeLengtheningData(idxTrial).x > xStart, 1 );
+
+        expXTmp = expTRSS2017.activeLengtheningData(idxTrial).x(idx0:idx1);
+        expYTmp = expTRSS2017.activeLengtheningData(idxTrial).y(idx0:idx1);
+
+        A = [expXTmp, ones(size(expXTmp))];
+        b = expYTmp;
+        p = (A'*A)\(A'*b);
+        expSlope = p(1,1);
+
+        xLine = expXTmp;
+        yLine = [xLine, ones(size(xLine))]*p;
+
+        lopt=ratFibrilModelsFitted(idxTrial).musculotendon.optimalFiberLength;
+        fiso=ratFibrilModelsFitted(idxTrial).musculotendon.fiso;
+
+        optParams.exp(idxTrial).x = expXTmp;
+        optParams.exp(idxTrial).y = expYTmp;
+        optParams.exp(idxTrial).dydx = expSlope;
+        optParams.exp(idxTrial).xLine=xLine;
+        optParams.exp(idxTrial).yLine=yLine;
+
+    end
+
+end
 
 if(simConfig.runFitting==1 && fittingConfig.fitQ==1)
     %
     % Solve for Q to best fit the average slope of the force development
     %
-    flagFirstLoop=1;
     flagDebug=1;
     simConfigTmp = simConfig;
     figDebugFittingQ=figure;
+    
+    loops = length(fittingConfig.titin.trials);
+    if(fittingConfig.titin.individuallyFit==0)
+        loops=1;
+    end
+    
+    Q = 0.5;
+    QDelta = 0.5*Q;
+    
+    optParams.name = 'Q';
+    optParams.value=  Q;
 
-    for idxTrial = fittingConfig.titin.trials
-
-        Q = 0.5;
-        QDelta = 0.25;
-
-        idx1 = length(expTRSS2017.activeLengtheningData(idxTrial).x);
-
-        x0 = expTRSS2017.activeLengtheningData(idxTrial).x(1,1);
-        x1 = expTRSS2017.activeLengtheningData(idxTrial).x(end);
-        xMid= 0.5*(x0+x1);
-        idx0 = min(find(expTRSS2017.activeLengtheningData(idxTrial).x > xMid));
-
-        expX = expTRSS2017.activeLengtheningData(idxTrial).x(idx0:idx1);
-        expY = expTRSS2017.activeLengtheningData(idxTrial).y(idx0:idx1);
-
-        A = [expX, ones(size(expX))];
-        b = expY;
-        p = (A'*A)\(A'*b);
-        expSlope = p(1,1);
-
-        xLine = expX;
-        yLine = [xLine, ones(size(xLine))]*p;
-
-        if(flagDebug==1 && flagFirstLoop==1)
-            figExpSlope = figure;
-            plot(expTRSS2017.activeLengtheningData(idxTrial).x,...
-                 expTRSS2017.activeLengtheningData(idxTrial).y,'-k');
-            hold on;
-            plot(expX,expY,'xk');
-            hold on;
-            plot(xLine,yLine,'-b');
-            xlabel('X');
-            ylabel('Y');
+    for idxLoop = 1:1:loops
+        idxTrial = nan;
+        if(fittingConfig.titin.individuallyFit==1)
+            idxTrial = simConfig.trials(1,idxLoop);
+            simConfigTmp.trials = idxTrial;
         end
-
-        lopt=ratFibrilModels(idxTrial).musculotendon.optimalFiberLength;
-        fiso=ratFibrilModels(idxTrial).musculotendon.fiso;
-
-        optParams.name = 'Q';
-        optParams.value=   Q;
-        simConfigTmp.trials = [idxTrial];
+        
         simConfigTmp.flag_debugFitting=0;
         fittingFraction=1;
         npts=100;
-        [flNError,figDebugFittingQ,ratFibrilModelsUpd,benchRecord] =...
+        [optError,figDebugFittingQ,ratFibrilModelsFittedUpd,benchRecord] =...
             calcErrorTRSS2017RampFraction(optParams,...
                        fittingFraction, npts, ...
-                       ratFibrilModels, expTRSS2017,simConfigTmp,...
+                       ratFibrilModelsFitted, expTRSS2017,simConfigTmp,...
                        figDebugFittingQ,subPlotPanel,lineColors.simTitinK);
-        disp('You are here');
-        %for i=1:1:fittingConfig.numberOfBisections
+
+        optErrorBest=optError;
+        QBest=Q;
+        dirMap = [1,-1];
+
+        if(fittingConfig.titin.individuallyFit==1)
+            fprintf('%1.2e\tfitting trial %i: Q rmse terminal slope (start)\n',...
+                    optErrorBest,idxTrial);
+            fprintf('%e\tQ (start)\n',QBest);    
+    
+            fprintf(fidFitting,...
+                '%1.2e\tfitting trial %i: Q rmse terminal slope (start)\n',...
+                optErrorBest,idxTrial);
+            fprintf(fidFitting,...
+                '%e\tQ (start)\n',QBest);    
+        else
+            fprintf('%1.2e\tfitting all: Q rmse terminal slope (start)\n',...
+                    optErrorBest);
+            fprintf('%e\tQ (start)\n',QBest);    
+    
+            fprintf(fidFitting,...
+                '%1.2e\tfitting all: Q rmse terminal slope (start)\n',...
+                optErrorBest);
+            fprintf(fidFitting,...
+                '%e\tQ (start)\n',QBest);    
+        end
+
+        for i=1:1:fittingConfig.numberOfBisections
+            fprintf('%i/%i\n',i,fittingConfig.numberOfBisections);
+        
+            for j=1:1:length(dirMap)
+                Q = QBest + QDelta*dirMap(1,j);
+                optParams.value=Q;
+                [optError,figDebugFittingQ,ratFibrilModelsFittedUpd,benchRecord] =...
+                    calcErrorTRSS2017RampFraction(optParams,...
+                               fittingFraction, npts, ...
+                               ratFibrilModelsFitted, expTRSS2017,simConfigTmp,...
+                               figDebugFittingQ,subPlotPanel,lineColors.simTitinK);
+                if(optError<optErrorBest)
+                    optErrorBest=optError;
+                    QBest=Q;
+                    break;
+                end
+            end
             
+            QDelta=QDelta*0.5;
 
+        end
 
-        %end
-        flagFirstLoop=0;
+        fprintf('%1.2e\tfitting: Q rmse terminal slope (end)\n',optErrorBest);
+        fprintf('%e\tQ (end)\n',QBest);    
+        fprintf(fidFitting,'%1.2e\tfitting: Q rmse terminal slope (end)\n',optErrorBest);
+        fprintf(fidFitting,'%e\tQ (end)\n',QBest);    
+
+        %
+        % Update the parameter struct
+        % 
+        optParams.value=QBest;
+        [optError,figDebugFittingQ,ratFibrilModelsFittedUpd,benchRecord] =...
+            calcErrorTRSS2017RampFraction(optParams,...
+                       fittingFraction, npts, ...
+                       ratFibrilModelsFitted, expTRSS2017,simConfigTmp,...
+                       figDebugFittingQ,subPlotPanel,lineColors.simTitinK);
+
+        if(fittingConfig.titin.individuallyFit==1)
+            ratFibrilModelsFitted(idxTrial)=ratFibrilModelsFittedUpd(idxTrial);
+        else
+            ratFibrilModelsFitted=ratFibrilModelsFittedUpd;
+        end
+        
+    end
+
+    if(flagDebug==1)
+        if(exist('figExpSlope')==1)
+            clf(figExpSlope);
+        else
+            figExpSlope = figure;
+        end
+        for idxTrial=simConfig.trials
+            plot(expTRSS2017.activeLengtheningData(idxTrial).x,...
+                 expTRSS2017.activeLengtheningData(idxTrial).y,'-k');
+            hold on;
+            plot(optParams.exp(idxTrial).x,optParams.exp(idxTrial).y,'xk');
+            hold on;
+            plot(optParams.exp(idxTrial).xLine,optParams.exp(idxTrial).yLine,'-b');
+            hold on;
+            plot(benchRecord.normFiberLength(:,idxTrial).*lopt,...
+                 benchRecord.normFiberForce(:,idxTrial),'-r' );
+        end
+        xlabel('X');
+        ylabel('Y');
+        title(sprintf('Trial %i',idxTrial));
     end
     
-
+    %
+    % If we are fitting just one of the trials, then update the others
+    % to have the same fitted Q value
+    %
+    if(length(fittingConfig.titin.trials)==1 ...
+            && fittingConfig.titin.applyToAllTrials==1)
+        for i=1:1:length(ratFibrilModelsFitted)
+            if(i ~= fittingConfig.titin.trials(1,1))
+                ratFibrilModelsFitted(i)=ratFibrilModelsFitted(fittingConfig.titin.trials);
+            end
+        end
+    end
+   
 end
-
 %
 % Solve for f1HNPreload: the preload that the proximal segment of titin
 %                        develops to best match the observed
 %                        active-lengthening force profile.
 %
 if(simConfig.runFitting==1 && fittingConfig.fitf1HNPreload == 1)
-    here=1;
+    
+    flagDebug=1;
+    simConfigTmp=simConfig;
+    figDebugFittingF1HNPreload=figure;
+
+    loops = length(fittingConfig.titin.trials);
+    if(fittingConfig.titin.individuallyFit==0)
+        loops=1;
+    end
+
+
+    for idxLoop=1:1:loops
+
+        idxTrial=nan;
+        if(fittingConfig.titin.individuallyFit==1)
+            idxTrial = simConfig.trials(1,idxLoop);
+            simConfigTmp.trials = idxTrial;
+        end
+
+
+        f1HNPreload=0.1;
+        f1HNPreloadDelta=f1HNPreload*0.5;
+
+        optParams.name  = 'f1HNPreload';
+        optParams.value = f1HNPreload;
+
+        simConfigTmp.flag_debugFitting=0;
+        fittingFraction=1;
+        npts=100;
+        [optError,figDebugFittingF1HNPreload,ratFibrilModelsFittedUpd,benchRecord] =...
+            calcErrorTRSS2017RampFraction(optParams,fittingFraction,npts,...
+                       ratFibrilModelsFitted, expTRSS2017,simConfigTmp,...
+                       figDebugFittingF1HNPreload,subPlotPanel,...
+                       lineColors.simTitinK);
+
+        optErrorBest=optError;
+        f1HNPreloadBest=f1HNPreload;
+        dirMap = [1,-1];
+
+        if(fittingConfig.titin.individuallyFit==1)
+            fprintf('%1.2e\tfitting trial %i: f1HNPreload rmse (start)\n',...
+                    optErrorBest,idxTrial);
+            fprintf('%e\tf1HNPreload (start)\n',f1HNPreloadBest);    
+            fprintf(fidFitting,...
+                    '%1.2e\tfitting trial %i: f1HNPreload rmse (start)\n',...
+                    optErrorBest,idxTrial);
+            fprintf(fidFitting,...
+                    '%e\tf1HNPreload (start)\n',f1HNPreloadBest);    
+        else
+            fprintf('%1.2e\tfitting all: f1HNPreload rmse (start)\n',...
+                    optErrorBest);
+            fprintf('%e\tf1HNPreload (start)\n',f1HNPreloadBest);    
+            fprintf(fidFitting,...
+                    '%1.2e\tfitting all: f1HNPreload rmse (start)\n',...
+                    optErrorBest);
+            fprintf(fidFitting,...
+                    '%e\tf1HNPreload (start)\n',f1HNPreloadBest);    
+
+        end
+        for i=1:1:fittingConfig.numberOfBisections
+            fprintf('%i/%i\n',i,fittingConfig.numberOfBisections);
+        
+            for j=1:1:length(dirMap)
+                f1HNPreload = f1HNPreloadBest + f1HNPreloadDelta*dirMap(1,j);
+                optParams.value=f1HNPreload;
+                [optError,figDebugFittingQ,ratFibrilModelsFittedUpd,benchRecord] =...
+                    calcErrorTRSS2017RampFraction(optParams,...
+                               fittingFraction, npts, ...
+                               ratFibrilModelsFitted, expTRSS2017,simConfigTmp,...
+                               figDebugFittingQ,subPlotPanel,lineColors.simTitinK);
+                if(optError<optErrorBest)
+                    optErrorBest=optError;
+                    f1HNPreloadBest=f1HNPreload;
+                    break;
+                end
+            end
+            
+            f1HNPreloadDelta=f1HNPreloadDelta*0.5;
+
+        end
+        
+
+        fprintf(fidFitting,...
+            '%1.2e\tfitting trial %i: f1HNPreload rmse (end)\n',...
+            optErrorBest,idxTrial);
+        fprintf(fidFitting,...
+            '%e\tf1HNPreload (end)\n',f1HNPreloadBest);    
+
+        %
+        % Update the parameter struct
+        % 
+        optParams.value=f1HNPreloadBest;
+        [optError,figDebugFittingF1HNPreload,ratFibrilModelsFittedUpd,benchRecord] =...
+            calcErrorTRSS2017RampFraction(optParams,...
+                       fittingFraction, npts, ...
+                       ratFibrilModelsFitted, expTRSS2017,simConfigTmp,...
+                       figDebugFittingF1HNPreload,subPlotPanel,lineColors.simTitinK);
+
+
+        if(fittingConfig.titin.individuallyFit==1)
+            ratFibrilModelsFitted(idxTrial)=ratFibrilModelsFittedUpd(idxTrial);
+        else
+            ratFibrilModelsFitted=ratFibrilModelsFittedUpd;
+        end
+
+
+    end
+
+    if(flagDebug==1)
+        if(exist('figExpSlope')==1)
+            clf(figExpSlope);
+        else
+            figExpSlope = figure;
+        end
+        for idxTrial=simConfig.trials
+            plot(expTRSS2017.activeLengtheningData(idxTrial).x,...
+                 expTRSS2017.activeLengtheningData(idxTrial).y,'-k');
+            hold on;
+            plot(optParams.exp(idxTrial).x,optParams.exp(idxTrial).y,'xk');
+            hold on;
+            plot(benchRecord.normFiberLength(:,idxTrial).*lopt,...
+                 benchRecord.normFiberForce(:,idxTrial),'-r' );
+            plot(optParams.exp(idxTrial).xLine,optParams.exp(idxTrial).yLine,'-b');
+            hold on;
+        end
+        xlabel('X');
+        ylabel('Y');
+        title(sprintf('Trial %i',idxTrial));
+    end
+
+    %
+    % If we are fitting just one of the trials, then update the others
+    % to have the same fitted Q value
+    %
+    if(length(fittingConfig.titin.trials)==1 ...
+            && fittingConfig.titin.applyToAllTrials==1)
+        for i=1:1:length(ratFibrilModelsFitted)
+            if(i ~= fittingConfig.titin.trials(1,1))
+                ratFibrilModelsFitted(i)=ratFibrilModelsFitted(fittingConfig.titin.trials);
+            end
+        end
+    end
+    
 end
+
+if(simConfig.runFitting==1)
+    fclose(fidFitting);
+    
+    %
+    % Simulate all of the trials with the updated parameters and save the
+    % results to file
+    %
+    optParams.name  = 'simulate';
+    optParams.value = nan;
+    optParams.expX  = [];
+    optParams.expY  = [];
+    optParams.expDYDX = nan;
+
+    simConfigTmp=simConfig;
+    simConfigTmp.trials =[1,2,3];
+    simConfigTmp.flag_debugFitting=0;
+    fittingFraction=1;
+    npts=100;
+    [optError,figDebugFittingF1HNPreload,ratFibrilModelsFittedUpd,benchRecordFitted] =...
+        calcErrorTRSS2017RampFraction(optParams,fittingFraction,npts,...
+                   ratFibrilModelsFitted, expTRSS2017,simConfigTmp,...
+                   figDebugFittingF1HNPreload,subPlotPanel,...
+                   lineColors.simTitinK);
+
+    save(fullfile(projectFolders.output_structs_TRSS2017,...
+         ['benchRecordVexat_TRSS2017_fitted',fittingTrialsStr,'.mat']),...
+         'benchRecordFitted');
+    save(fullfile(projectFolders.output_structs_FittedModels,...
+        ['ratTRSS2017EDLFibrilActiveTitinFitted',fittingTrialsStr,'.mat']),...
+        'ratFibrilModelsFitted');
+
+
+end
+
 
 %%
 %
@@ -821,9 +1097,9 @@ end
 
 if(simConfig.generatePlots==1)
     load(fullfile(projectFolders.output_structs_TRSS2017,...
-                    'benchRecordVexat_TRSS2017_fitted.mat'));
+            ['benchRecordVexat_TRSS2017_fitted',fittingTrialsStr,'.mat']));
     tmp = load(fullfile(projectFolders.output_structs_FittedModels,...
-                        'ratTRSS2017EDLFibrilActiveTitinFitted.mat'));
+            ['ratTRSS2017EDLFibrilActiveTitinFitted',fittingTrialsStr,'.mat']));
     ratFibrilModelsFitted=tmp.ratFibrilModelsFitted;
 
 
