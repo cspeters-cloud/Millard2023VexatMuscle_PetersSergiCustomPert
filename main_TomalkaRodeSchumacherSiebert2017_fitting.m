@@ -37,7 +37,7 @@ fittingConfig.idxFlKey = 1;
 fittingConfig.titin.trials = [1,2,3]; 
 % [1]    : will fit just trial 1
 % [1,2,3]: will fit to trials 1,2,3
-fittingConfig.titin.individuallyFit = 0; 
+fittingConfig.titin.individuallyFit = 1; 
 % 0: a set of titin parameters that best fits all trials will be solved
 % 1: a set of titin parameters the best fits each individual trial will be solved  
 %
@@ -992,6 +992,9 @@ if(simConfig.runFitting==1 && fittingConfig.fitf1HNPreload == 1)
 
         end
         
+        fprintf('%1.2e\tfitting trial %i: f1HNPreload rmse (end)\n',...
+            optErrorBest,idxTrial);
+        fprintf('%e\tf1HNPreload (end)\n',f1HNPreloadBest);    
 
         fprintf(fidFitting,...
             '%1.2e\tfitting trial %i: f1HNPreload rmse (end)\n',...
@@ -1520,11 +1523,13 @@ end
 % Generate plots that compare the simulation results to the experiments
 %
 if(simConfig.generatePlots==1)
+
     load(fullfile(projectFolders.output_structs_TRSS2017,...
-                    'benchRecordVexat_TRSS2017_fitted.mat'));
+            ['benchRecordVexat_TRSS2017_fitted',fittingTrialsStr,'.mat']));
     tmp = load(fullfile(projectFolders.output_structs_FittedModels,...
-                        'ratTRSS2017EDLFibrilActiveTitinFitted.mat'));
+            ['ratTRSS2017EDLFibrilActiveTitinFitted',fittingTrialsStr,'.mat']));
     ratFibrilModelsFitted=tmp.ratFibrilModelsFitted;
+
 
 
     curveFitted = ratFibrilModelsFitted(1).curves.activeForceLengthCurve;    
