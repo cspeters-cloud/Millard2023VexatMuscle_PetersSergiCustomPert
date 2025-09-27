@@ -29,7 +29,7 @@ fittingConfig.fitFv             =1;
 fittingConfig.fitTimeConstant   =1;
 fittingConfig.fitKx             =1;
 fittingConfig.fitQ              =1;
-fittingConfig.fitf1HNPreload    =1;
+fittingConfig.fitf1HNPreload    =0;
 
 fittingConfig.numberOfBisections = 10;
 fittingConfig.idxFvKey = 3;
@@ -736,11 +736,14 @@ if(simConfig.runFitting==1)
 
         x0 = expTRSS2017.activeLengtheningData(idxTrial).x(1,1);
         x1 = expTRSS2017.activeLengtheningData(idxTrial).x(end);
-        xStart= x0 + 0.2*(x1-x0);
-        idx0 = find(expTRSS2017.activeLengtheningData(idxTrial).x > xStart, 1 );
+        xStart= x0 + 0.5*(x1-x0);
+        expXTmp = [0:0.1:1]'.*(x1-xStart) + xStart;
 
-        expXTmp = expTRSS2017.activeLengtheningData(idxTrial).x(idx0:idx1);
-        expYTmp = expTRSS2017.activeLengtheningData(idxTrial).y(idx0:idx1);
+        [expLceU,iq] = unique(expTRSS2017.activeLengtheningData(idxTrial).x);
+                
+        expYTmp = interp1(expTRSS2017.activeLengtheningData(idxTrial).x(iq),...
+                       expTRSS2017.activeLengtheningData(idxTrial).y(iq),...
+                       expXTmp);
 
         A = [expXTmp, ones(size(expXTmp))];
         b = expYTmp;
@@ -776,11 +779,10 @@ if(simConfig.runFitting==1 && fittingConfig.fitQ==1)
         loops=1;
     end
     
-    Q = 0.5;
-    QDelta = 0.5*Q;
+    QInit = 0.5;
+    QDeltaInit = 0.5*QInit;
     
-    optParams.name = 'Q';
-    optParams.value=  Q;
+    
 
     for idxLoop = 1:1:loops
         idxTrial = nan;
@@ -788,6 +790,9 @@ if(simConfig.runFitting==1 && fittingConfig.fitQ==1)
             idxTrial = simConfig.trials(1,idxLoop);
             simConfigTmp.trials = idxTrial;
         end
+
+        optParams.name = 'Q';
+        optParams.value=  QInit;
         
         simConfigTmp.flag_debugFitting=0;
         fittingFraction=1;
@@ -799,7 +804,8 @@ if(simConfig.runFitting==1 && fittingConfig.fitQ==1)
                        figDebugFittingQ,subPlotPanel,lineColors.simTitinK);
 
         optErrorBest=optError;
-        QBest=Q;
+        QBest=QInit;
+        QDelta=QDeltaInit;
         dirMap = [1,-1];
 
         if(fittingConfig.titin.individuallyFit==1)
@@ -866,30 +872,43 @@ if(simConfig.runFitting==1 && fittingConfig.fitQ==1)
         else
             ratFibrilModelsFitted=ratFibrilModelsFittedUpd;
         end
+
+        if(flagDebug==1)
+            if(exist('figExpSlope')==0)
+                figExpSlope = figure;
+            end
+            if(fittingConfig.titin.individuallyFit==1)
+                plot(expTRSS2017.activeLengtheningData(idxTrial).x,...
+                     expTRSS2017.activeLengtheningData(idxTrial).y,'-k');
+                hold on;
+                plot(optParams.exp(idxTrial).x,optParams.exp(idxTrial).y,'xk');
+                hold on;
+                plot(optParams.exp(idxTrial).xLine,optParams.exp(idxTrial).yLine,'-b');
+                hold on;
+                plot(benchRecord.normFiberLength(:,idxTrial).*lopt,...
+                     benchRecord.normFiberForce(:,idxTrial),'-r' );
+            
+            else
+                for idxTrial=simConfig.trials
+                    plot(expTRSS2017.activeLengtheningData(idxTrial).x,...
+                         expTRSS2017.activeLengtheningData(idxTrial).y,'-k');
+                    hold on;
+                    plot(optParams.exp(idxTrial).x,optParams.exp(idxTrial).y,'xk');
+                    hold on;
+                    plot(optParams.exp(idxTrial).xLine,optParams.exp(idxTrial).yLine,'-b');
+                    hold on;
+                    plot(benchRecord.normFiberLength(:,idxTrial).*lopt,...
+                         benchRecord.normFiberForce(:,idxTrial),'-r' );
+                end
+
+            end
+            xlabel('X');
+            ylabel('Y');
+            title(sprintf('Trial %i',idxTrial));
+        end
         
     end
 
-    if(flagDebug==1)
-        if(exist('figExpSlope')==1)
-            clf(figExpSlope);
-        else
-            figExpSlope = figure;
-        end
-        for idxTrial=simConfig.trials
-            plot(expTRSS2017.activeLengtheningData(idxTrial).x,...
-                 expTRSS2017.activeLengtheningData(idxTrial).y,'-k');
-            hold on;
-            plot(optParams.exp(idxTrial).x,optParams.exp(idxTrial).y,'xk');
-            hold on;
-            plot(optParams.exp(idxTrial).xLine,optParams.exp(idxTrial).yLine,'-b');
-            hold on;
-            plot(benchRecord.normFiberLength(:,idxTrial).*lopt,...
-                 benchRecord.normFiberForce(:,idxTrial),'-r' );
-        end
-        xlabel('X');
-        ylabel('Y');
-        title(sprintf('Trial %i',idxTrial));
-    end
     
     %
     % If we are fitting just one of the trials, then update the others
@@ -931,7 +950,7 @@ if(simConfig.runFitting==1 && fittingConfig.fitf1HNPreload == 1)
         end
 
 
-        f1HNPreload=0.1;
+        f1HNPreload=0.2;
         f1HNPreloadDelta=f1HNPreload*0.5;
 
         optParams.name  = 'f1HNPreload';
@@ -1019,29 +1038,40 @@ if(simConfig.runFitting==1 && fittingConfig.fitf1HNPreload == 1)
             ratFibrilModelsFitted=ratFibrilModelsFittedUpd;
         end
 
+        if(flagDebug==1)
+            if(exist('figExpSlope2')==0)
+                figExpSlope2 = figure;
+            end
+            if(fittingConfig.titin.individuallyFit==1)
+                plot(expTRSS2017.activeLengtheningData(idxTrial).x,...
+                     expTRSS2017.activeLengtheningData(idxTrial).y,'-k');
+                hold on;
+                plot(optParams.exp(idxTrial).x,optParams.exp(idxTrial).y,'xk');
+                hold on;
+                plot(optParams.exp(idxTrial).xLine,optParams.exp(idxTrial).yLine,'-b');
+                hold on;
+                plot(benchRecord.normFiberLength(:,idxTrial).*lopt,...
+                     benchRecord.normFiberForce(:,idxTrial),'-r' );
+            
+            else
+                for idxTrial=simConfig.trials
+                    plot(expTRSS2017.activeLengtheningData(idxTrial).x,...
+                         expTRSS2017.activeLengtheningData(idxTrial).y,'-k');
+                    hold on;
+                    plot(optParams.exp(idxTrial).x,optParams.exp(idxTrial).y,'xk');
+                    hold on;
+                    plot(optParams.exp(idxTrial).xLine,optParams.exp(idxTrial).yLine,'-b');
+                    hold on;
+                    plot(benchRecord.normFiberLength(:,idxTrial).*lopt,...
+                         benchRecord.normFiberForce(:,idxTrial),'-r' );
+                end
 
-    end
+            end
+            xlabel('X');
+            ylabel('Y');
+            title(sprintf('Trial %i',idxTrial));
+        end
 
-    if(flagDebug==1)
-        if(exist('figExpSlope')==1)
-            clf(figExpSlope);
-        else
-            figExpSlope = figure;
-        end
-        for idxTrial=simConfig.trials
-            plot(expTRSS2017.activeLengtheningData(idxTrial).x,...
-                 expTRSS2017.activeLengtheningData(idxTrial).y,'-k');
-            hold on;
-            plot(optParams.exp(idxTrial).x,optParams.exp(idxTrial).y,'xk');
-            hold on;
-            plot(benchRecord.normFiberLength(:,idxTrial).*lopt,...
-                 benchRecord.normFiberForce(:,idxTrial),'-r' );
-            plot(optParams.exp(idxTrial).xLine,optParams.exp(idxTrial).yLine,'-b');
-            hold on;
-        end
-        xlabel('X');
-        ylabel('Y');
-        title(sprintf('Trial %i',idxTrial));
     end
 
     %
@@ -1077,10 +1107,13 @@ if(simConfig.runFitting==1)
     simConfigTmp.flag_debugFitting=0;
     fittingFraction=1;
     npts=100;
-    [optError,figDebugFittingF1HNPreload,ratFibrilModelsFittedUpd,benchRecordFitted] =...
+
+    figDebugFitting=figure;
+
+    [optError,figDebugFitting,ratFibrilModelsFittedUpd,benchRecordFitted] =...
         calcErrorTRSS2017RampFraction(optParams,fittingFraction,npts,...
                    ratFibrilModelsFitted, expTRSS2017,simConfigTmp,...
-                   figDebugFittingF1HNPreload,subPlotPanel,...
+                   figDebugFitting,subPlotPanel,...
                    lineColors.simTitinK);
 
     save(fullfile(projectFolders.output_structs_TRSS2017,...
