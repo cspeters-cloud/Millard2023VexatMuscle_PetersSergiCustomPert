@@ -11,26 +11,27 @@ clear all;
 %%
 % Parameters
 %%
-simConfig.runFitting              = 1; 
-simConfig.generatePlots           = 0;
-simConfig.trials                  = [1,2,3];
-simConfig.fitToIndividualTrials   = 0; 
+simConfig.runFitting              = 0; 
+simConfig.generatePlots           = 1;
+simConfig.fitToIndividualTrials   = 1; 
 % 0: A single parameter that best fits all trials will be solved for 
 % 1: The parameters that best fit each trial will be solved for
 % Note: this only applies to a subset of parameters
+
+simConfig.trials                  = [1,2,3];
 simConfig.defaultTrialId          = 0; %Set to 1,2,3 to fit to just this trial
 simConfig.useDefaultModel         = 1;
 simConfig.flag_debugFitting       = 1;
 
 
 modelConfig.fibrilOption     = 'Fibril'; %Fibril or ''
-modelConfig.wlcOption        = ''; %WLC or ''
+modelConfig.wlcOption        = ''; %WLC or ''6
 modelConfig.muscleName       = 'EDL';
 modelConfig.experimentName   = 'TRSS2017';
 
 fittingConfig.fitFl             =1;
 fittingConfig.fitFv             =1;
-fittingConfig.fitTimeConstant   =1; 
+fittingConfig.fitTimeConstant   =0; 
 %Lengthening time constant in Eqn. 16 of Millard, Franklin, Herzog
 
 fittingConfig.fitKx             =1;
@@ -59,8 +60,8 @@ pubPlotOptions.useSmoothedStiffnessData     = 1;
 pubPlotOptions.plotRawStiffnessData         = 0;
 pubPlotOptions.stiffnessLowerForceBound     = 0.05;
 
-pubPlotOptions.fceNMax   = 2.6;
-pubPlotOptions.kceNMax   = 6;
+pubPlotOptions.fceNMax   = 2.9;
+pubPlotOptions.kceNMax   = 6.5;
 pubPlotOptions.lceNMin   = 0.6;
 pubPlotOptions.lceNMax   = 1.45;
 
@@ -91,11 +92,11 @@ addpath( genpath(projectFolders.postprocessing) );
 %%
 % Plot parameters
 %%
-plotLayoutSettings = struct('numberOfHorizontalPlotColumns',  2,...
+plotLayoutSettings = struct('numberOfHorizontalPlotColumns',  3,...
                             'numberOfVerticalPlotRows',       5,...
                             'flag_fixedPlotWidth',            1,...
-                            'plotWidth',                      7,...
-                            'plotHeight',                     7,...
+                            'plotWidth',                      4.5,...
+                            'plotHeight',                     4.5,...
                             'flag_usingOctave',               0);
 
 numberOfHorizontalPlotColumns = plotLayoutSettings.numberOfHorizontalPlotColumns;
@@ -105,7 +106,7 @@ plotWidth                     = plotLayoutSettings.plotWidth;
 plotHeight                    = plotLayoutSettings.plotHeight;
 flag_usingOctave              = plotLayoutSettings.flag_usingOctave;
 
-plotHorizMarginCm = 1.5;
+plotHorizMarginCm = 1.;
 plotVertMarginCm  = 2.0;
 
 pageWidth   = (plotWidth+plotHorizMarginCm)*numberOfHorizontalPlotColumns...
@@ -135,13 +136,13 @@ lineColors.orig(3,:)=[63,181,175]./255;
 
 for i=1:1:3
     n0 = 0.25*(i-1);
-    n1 = n0+0.25;
+    n1 = n0;%n0+0.25;
     lineColors.exp(i,:)         = [0,0,0].*(1-n1)+[1,1,1].*n1;  
     lineColors.simXE(i,:)       = cs.grey;
-    lineColors.calcTitinF(i,:)  = cs.blue.*(1-n0)+[1,1,1].*n0;
-    lineColors.calcTitinK(i,:)  = lineColors.calcTitinF(i,:);
-    lineColors.simF(i,:)        = cs.red.*(1-n0)+[1,1,1].*n0;
-    lineColors.simTitinF(i,:)   = cs.magenta.*(1-n0)+[1,1,1].*n0;
+    lineColors.calcTitinF(i,:)  = lineColors.exp(i,:);%cs.blue.*(1-n0)+[1,1,1].*n0;
+    lineColors.calcTitinK(i,:)  = lineColors.exp(i,:);%lineColors.calcTitinF(i,:);
+    lineColors.simF(i,:)        = cs.blue.*(1-n0)+[1,1,1].*n0;%cs.red.*(1-n0)+[1,1,1].*n0;
+    lineColors.simTitinF(i,:)   = cs.red.*(1-n0)+[1,1,1].*n0;%cs.magenta.*(1-n0)+[1,1,1].*n0;
     lineColors.simTitinK(i,:)   = lineColors.simTitinF(i,:);
 end
 
@@ -310,7 +311,7 @@ if(simConfig.generatePlots==1)
                 figPub,...
                 ratFibrilModelsDefault,...
                 ratFibrilModelsFitted,...
-                fittingInfo,...
+                fitInfo,...
                 benchRecordFitted,...
                 expTRSS2017,...
                 simConfig,...
@@ -321,8 +322,14 @@ if(simConfig.generatePlots==1)
 
     figure(figPub);    
     configPlotExporter;
+
     filePath = fullfile(projectFolders.output_plots_TRSS2017,...
-                        'fig_Sim_TRSS2017_Pub.pdf');
+                        'fig_Sim_TRSS2017_fitToAll_Pub.pdf');
+    
+    if(fittingConfig.titin.individuallyFit==1)
+        filePath = fullfile(projectFolders.output_plots_TRSS2017,...
+                            'fig_Sim_TRSS2017_IndividualFit_Pub.pdf');
+    end
     print('-dpdf', filePath); 
 
 end

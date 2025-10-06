@@ -29,7 +29,8 @@ fitInfoFields= fields(fitInfo);
 
 for i=1:1:length(fitInfoFields)
     fitInfo.(fitInfoFields{i}) = ...
-        struct('rmse',nan,'xerr',[],'yerr',[],'arg',nan);
+        struct('rmse',nan,'x',[],'yErr',[],'y',[],'yFit',[],...
+               'arg',nan,'argDelta',nan);
 end
 
 fidFitting = fopen(fullfile(projectFolders.output_structs_TRSS2017,...
@@ -80,7 +81,7 @@ if(fittingConfig.fitFl==1)
 
     argBest  = 0.2;
     flag_compensateForCrossbridgeStiffness = 0;
-    [errFlN,curveL] = calcErrorTRSS2017ForceLengthRelationAscendingLimb(argBest,...
+    [errFlN,flNFit,curveL] = calcErrorTRSS2017ForceLengthRelationAscendingLimb(argBest,...
                         expfl.lce,expfl.fN,...
                         ratFibrilModelsFitted(1).sarcomere,...
                         ratFibrilModelsFitted(1).musculotendon,...
@@ -98,7 +99,8 @@ if(fittingConfig.fitFl==1)
     for i=1:1:fittingConfig.numberOfBisections
 
         argL = argBest-argDelta;
-        [errL,curveL] = calcErrorTRSS2017ForceLengthRelationAscendingLimb(argL,...
+        [errL,flNFitL,curveL] = ...
+            calcErrorTRSS2017ForceLengthRelationAscendingLimb(argL,...
                             expfl.lce,expfl.fN,...
                             ratFibrilModelsFitted(1).sarcomere,...
                             ratFibrilModelsFitted(1).musculotendon,...
@@ -106,7 +108,8 @@ if(fittingConfig.fitFl==1)
         errLMag = sqrt(mean(errL.^2));
 
         argR = argBest+argDelta;
-        [errR,curveR] = calcErrorTRSS2017ForceLengthRelationAscendingLimb(argR,...
+        [errR,flNFitR,curveR] = ...
+            calcErrorTRSS2017ForceLengthRelationAscendingLimb(argR,...
                             expfl.lce,expfl.fN,...
                             ratFibrilModelsFitted(1).sarcomere,...
                             ratFibrilModelsFitted(1).musculotendon,...
@@ -116,23 +119,30 @@ if(fittingConfig.fitFl==1)
         if(errLMag < errBest && errLMag <= errRMag )
             argBest=argL;
             errBest=errLMag;
-            curveBest=curveL;
-            errValBest=errL;
+            fitInfo.fl.rmse = errBest;
+            fitInfo.fl.x = expfl.lce;
+            fitInfo.fl.y = expfl.fN;
+            fitInfo.fl.yFit = flNFitL;            
+            fitInfo.fl.yErr = errL;
+            fitInfo.fl.arg = argBest;
+            fitInfo.fl.argDelta = argDelta;
         elseif(errRMag < errBest && errRMag < errLMag)
             argBest=argR;
             errBest=errRMag;
-            curveBest=curveR;            
-            errValBest=errL;            
+            fitInfo.fl.rmse = errBest;
+            fitInfo.fl.x = expfl.lce;
+            fitInfo.fl.y = expfl.fN;
+            fitInfo.fl.yFit = flNFitR;                        
+            fitInfo.fl.yErr = errR;
+            fitInfo.fl.arg = argBest;
+            fitInfo.fl.argDelta = argDelta;
         end
 
         argDelta=argDelta*0.5;
 
     end
 
-    fitInfo.fl.rmse = errBest;
-    fitInfo.fl.xerr = expfl.lce;
-    fitInfo.fl.yerr = errValBest;
-    fitInfo.fl.arg = argBest;
+
 
     fprintf('%1.2e\tfitting: fal rmse (end)\n',errBest);
     fprintf('%e\tfal-asc offset (end)\n\n',argBest);
@@ -146,7 +156,7 @@ if(fittingConfig.fitFl==1)
     for i=simConfig.trials
 
         flag_compensateForCrossbridgeStiffness=0;
-        [optError, falCurve] = ...
+        [optError, flNV,falCurve] = ...
             calcErrorTRSS2017ForceLengthRelationAscendingLimb(...
                 argBest, expfl.lce,expfl.fN,...
                 ratFibrilModelsFitted(1).sarcomere,...
@@ -156,7 +166,7 @@ if(fittingConfig.fitFl==1)
         ratFibrilModelsFitted(i).curves.activeForceLengthCurve=falCurve;
 
         flag_compensateForCrossbridgeStiffness=1;
-        [optErrorCal, falCurveCal] = ...
+        [optErrorCal, flNV, falCurveCal] = ...
             calcErrorTRSS2017ForceLengthRelationAscendingLimb(...
                 argBest, expfl.lce,expfl.fN,...
                 ratFibrilModelsFitted(1).sarcomere,...
@@ -165,6 +175,7 @@ if(fittingConfig.fitFl==1)
 
         ratFibrilModelsFitted(i).curves.activeForceLengthCalibratedCurve=falCurveCal;
         
+        curveBest= falCurve;
     end
 
 
@@ -246,11 +257,12 @@ if(fittingConfig.fitFv==1)
     delta = 0.1;
     
 
-    [errBest,errValBest, fvCurveBest] = ...
+    [fvNErrorV,fvNfitV, fvCurveBest] = ...
         calcErrorTRSS2017ForceVelocityRelation(...
             arg, expfv, ...
             ratFibrilModelsFitted(1).curves.activeForceLengthCurve,...
             ratFibrilModelsFitted(1).musculotendon);
+    errBest = sqrt(mean(fvNErrorV.^2));
 
     fprintf('%1.2e\tfitting: fv rmse (start)\n',errBest);
     fprintf('%e\tfv ecc offset (start)\n',argBest);
@@ -260,40 +272,53 @@ if(fittingConfig.fitFv==1)
 
 
     for i=1:1:fittingConfig.numberOfBisections
+
         arg = argBest-delta;
-        [fvNError,fvNErrorV, fvCurve] = ...
+
+        [fvNErrorV,fvNfitV, fvCurve] = ...
         calcErrorTRSS2017ForceVelocityRelation(...
             arg, expfv, ...
             ratFibrilModelsFitted(1).curves.activeForceLengthCurve,...
             ratFibrilModelsFitted(1).musculotendon);
-        if(fvNError<errBest)
+        fvNRmse = sqrt(mean(fvNErrorV.^2));
+
+        if(fvNRmse<errBest)
             argBest=arg;
-            errBest=fvNError;
-            errValBest=fvNErrorV;
-            fvCurveBest=fvCurve;
+            errBest=fvNRmse;
+            %errValBest=fvNErrorV;
+            %fvCurveBest=fvCurve;
+            fitInfo.fv.rmse = errBest;
+            fitInfo.fv.x    = expfv.lceN*lceOptMdl;
+            fitInfo.fv.y    = expfv.fvN;
+            fitInfo.fv.yFit = fvNfitV;
+            fitInfo.fv.yErr = errValBest;
+            fitInfo.fv.arg  = argBest;
+            fitInfo.fv.argDelta = delta;
+            
         else
             arg = argBest+delta;
-            [fvNError,fvNErrorV, fvCurve] = ...
+            [fvNErrorV,fvNfitV, fvCurve] = ...
             calcErrorTRSS2017ForceVelocityRelation(...
                 arg, expfv, ...
                 ratFibrilModelsFitted(1).curves.activeForceLengthCurve,...
-                ratFibrilModelsFitted(1).musculotendon);
-            if(fvNError<errBest)
+                ratFibrilModelsFitted(1).musculotendon);       
+            fvNRmse = sqrt(mean(fvNErrorV.^2));
+            
+            if(fvNRmse<errBest)
                 argBest=arg;
-                errBest=fvNError;
-                errValBest=fvNErrorV;                
-                fvCurveBest=fvCurve;
+                errBest=fvNRmse;
+                fitInfo.fv.rmse = errBest;
+                fitInfo.fv.x    = expfv.lceN*lceOptMdl;
+                fitInfo.fv.y    = expfv.fvN;
+                fitInfo.fv.yFit = fvNfitV;
+                fitInfo.fv.yErr = errValBest;
+                fitInfo.fv.arg  = argBest;
+                fitInfo.fv.argDelta = delta;
             end
         end
 
         delta=delta*0.5;
     end
-
-    fitInfo.fv.rmse = errBest;
-    fitInfo.fv.xerr = expfv.lceN*lceOptMdl;
-    fitInfo.fv.yerr = errValBest;
-    fitInfo.fv.arg  = argBest;
-
 
     fprintf('%1.2e\tfitting: fv rmse (end)\n',errBest);
     fprintf('%e\tfv ecc offset (end)\n',argBest);
@@ -438,9 +463,12 @@ if(fittingConfig.fitTimeConstant==1)
     fprintf('%e\t sliding-time constant scaling (end)\n\n',bestValue);
 
     fitInfo.timeConstant.rmse = bestError;
-    fitInfo.timeConstant.xerr  = bestErrorValues.x;
-    fitInfo.timeConstant.yerr  = bestErrorValues.y;
+    fitInfo.timeConstant.x  = bestErrorValues.x;
+    fitInfo.timeConstant.y  = bestErrorValues.y;
+    fitInfo.timeConstant.yFit  = bestErrorValues.yFit;
+    fitInfo.timeConstant.yErr  = bestErrorValues.yErr;
     fitInfo.timeConstant.arg  = bestValue;
+    fitInfo.timeConstant.argDelta = deltaValue*2;
     
 end
 
@@ -507,9 +535,12 @@ if(fittingConfig.fitKx==1)
     end
 
     fitInfo.Kx.rmse = bestError;
-    fitInfo.Kx.xerr  = bestErrorValues.x;
-    fitInfo.Kx.yerr  = bestErrorValues.y;
+    fitInfo.Kx.x    = bestErrorValues.x;
+    fitInfo.Kx.y    = bestErrorValues.y;
+    fitInfo.Kx.yFit = bestErrorValues.yFit;
+    fitInfo.Kx.yErr = bestErrorValues.yErr;
     fitInfo.Kx.arg  = bestValue;
+    fitInfo.Kx.argDelta = deltaValue*2;
     
     fprintf('%1.2e\tfitting: impedance scaling (end)\n',bestError);
     fprintf('%e\t impedance scaling (end)\n\n',bestValue);
@@ -676,20 +707,30 @@ if(fittingConfig.fitQToF ==1 || fittingConfig.fitQToK)
             if(fittingConfig.titin.individuallyFit==1)
                 if(isnan(fitInfo.QToF.rmse))
                     fitInfo.QToF.rmse = optErrorBest;
-                    fitInfo.QToF.xerr  = optErrorValuesBest.x(:,idxTrial);
-                    fitInfo.QToF.yerr  = optErrorValuesBest.y(:,idxTrial);
+                    fitInfo.QToF.x  = optErrorValuesBest.x(:,idxTrial);
+                    fitInfo.QToF.y     = optErrorValuesBest.y(:,idxTrial);
+                    fitInfo.QToF.yFit  = optErrorValuesBest.yFit(:,idxTrial);                    
+                    fitInfo.QToF.yErr  = optErrorValuesBest.yErr(:,idxTrial);
                     fitInfo.QToF.arg  = QBest;            
+                    fitInfo.QToF.argDelta = QDelta*2;
+
                 else
                     fitInfo.QToF.rmse = [fitInfo.QToF.rmse, optErrorBest];
-                    fitInfo.QToF.xerr  = [fitInfo.QToF.xerr,  optErrorValuesBest.x(:,idxTrial)];
-                    fitInfo.QToF.yerr  = [fitInfo.QToF.yerr,  optErrorValuesBest.y(:,idxTrial)];
+                    fitInfo.QToF.x  = [fitInfo.QToF.x,  optErrorValuesBest.x(:,idxTrial)];
+                    fitInfo.QToF.y      = [fitInfo.QToF.y,      optErrorValuesBest.y(:,idxTrial)];
+                    fitInfo.QToF.yFit   = [fitInfo.QToF.yFit,   optErrorValuesBest.yFit(:,idxTrial)];
+                    fitInfo.QToF.yErr   = [fitInfo.QToF.yErr,   optErrorValuesBest.yErr(:,idxTrial)];
                     fitInfo.QToF.arg  = [fitInfo.QToF.arg,  QBest];            
+                    fitInfo.QToF.argDelta = QDelta*2;
                 end
             else
                 fitInfo.QToF.rmse = optErrorBest;
-                fitInfo.QToF.xerr  = optErrorValuesBest.x;
-                fitInfo.QToF.yerr  = optErrorValuesBest.y;
-                fitInfo.QToF.arg  = QBest;            
+                fitInfo.QToF.x  = optErrorValuesBest.x;
+                fitInfo.QToF.y     = optErrorValuesBest.y;
+                fitInfo.QToF.yFit  = optErrorValuesBest.yFit;
+                fitInfo.QToF.yErr  = optErrorValuesBest.yErr;                
+                fitInfo.QToF.arg  = QBest;           
+                fitInfo.QToF.argDelta = QDelta*2;
             end
         end
 
@@ -697,20 +738,29 @@ if(fittingConfig.fitQToF ==1 || fittingConfig.fitQToK)
             if(fittingConfig.titin.individuallyFit==1)
                 if(isnan(fitInfo.QToK.rmse))
                     fitInfo.QToK.rmse = optErrorBest;
-                    fitInfo.QToK.xerr  = optErrorValuesBest.x(:,idxTrial);
-                    fitInfo.QToK.yerr  = optErrorValuesBest.y(:,idxTrial);
-                    fitInfo.QToK.arg  = QBest;            
+                    fitInfo.QToK.x  = optErrorValuesBest.x(:,idxTrial);
+                    fitInfo.QToK.y      = optErrorValuesBest.y(:,idxTrial);
+                    fitInfo.QToK.yFit   = optErrorValuesBest.yFit(:,idxTrial);
+                    fitInfo.QToK.yErr   = optErrorValuesBest.yErr(:,idxTrial);
+                    fitInfo.QToK.arg  = QBest;   
+                    fitInfo.QToK.argDelta = QDelta*2;
                 else
                     fitInfo.QToK.rmse = [fitInfo.QToK.rmse, optErrorBest];
-                    fitInfo.QToK.xerr  = [fitInfo.QToK.xerr,  optErrorValuesBest.x(:,idxTrial)];
-                    fitInfo.QToK.yerr  = [fitInfo.QToK.yerr,  optErrorValuesBest.y(:,idxTrial)];
+                    fitInfo.QToK.x  = [fitInfo.QToK.x,  optErrorValuesBest.x(:,idxTrial)];
+                    fitInfo.QToK.y    = [fitInfo.QToK.y,   optErrorValuesBest.y(:,idxTrial)];
+                    fitInfo.QToK.yFit = [fitInfo.QToK.yFit,optErrorValuesBest.yFit(:,idxTrial)];
+                    fitInfo.QToK.yErr = [fitInfo.QToK.yErr,optErrorValuesBest.yErr(:,idxTrial)];
                     fitInfo.QToK.arg  = [fitInfo.QToK.arg,  QBest];            
+                    fitInfo.QToK.argDelta = QDelta*2;
                 end
             else
                 fitInfo.QToK.rmse = optErrorBest;
-                fitInfo.QToK.xerr  = optErrorValuesBest.x;
-                fitInfo.QToK.yerr  = optErrorValuesBest.y;
-                fitInfo.QToK.arg  = QBest;            
+                fitInfo.QToK.x  = optErrorValuesBest.x;
+                fitInfo.QToK.y      = optErrorValuesBest.y;
+                fitInfo.QToK.yFit   = optErrorValuesBest.yFit;
+                fitInfo.QToK.yErr   = optErrorValuesBest.yErr;
+                fitInfo.QToK.arg  = QBest;   
+                fitInfo.QToK.argDelta = QDelta*2;
             end
         end
 
@@ -882,9 +932,12 @@ if(fittingConfig.fitf1HNPreload == 1)
         end
         
         fitInfo.f1HNPreload.rmse    = optErrorBest;
-        fitInfo.f1HNPreload.xerr    = optErrorValuesBest.x;
-        fitInfo.f1HNPreload.yerr    = optErrorValuesBest.y;
-        fitInfo.f1HNPreload.arg     = f1HNPreloadBest;            
+        fitInfo.f1HNPreload.x    = optErrorValuesBest.x;
+        fitInfo.f1HNPreload.y      = optErrorValuesBest.y;
+        fitInfo.f1HNPreload.yFit    = optErrorValuesBest.yFit;
+        fitInfo.f1HNPreload.yErr    = optErrorValuesBest.yErr;
+        fitInfo.f1HNPreload.arg     = f1HNPreloadBest;   
+        fitInfo.f1HNPreload.argDelta = f1HNPreloadDelta*2;
         
         fprintf('%1.2e\tfitting trial %i: f1HNPreload rmse (end)\n',...
             optErrorBest,idxTrial);

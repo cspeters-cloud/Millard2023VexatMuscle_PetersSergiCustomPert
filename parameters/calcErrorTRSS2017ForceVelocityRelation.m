@@ -1,4 +1,4 @@
-function [fvNRmse, fvNErrorV, fvCurve] = ...
+function [fvNErrorV,fvNFitV, fvCurve] = ...
     calcErrorTRSS2017ForceVelocityRelation(...
         paramArg, expfv, ...
         falCurve,...
@@ -59,9 +59,10 @@ end
 
 
 fvNErrorV = zeros(length(expfv.fvN),1);
+fvNFitV = fvNErrorV;
 for i=1:1:length(expfv.lceN)
     flN = calcBezierYFcnXDerivative(expfv.lceN(i),falCurve,0);
     fvN = calcBezierYFcnXDerivative(expfv.vceN(i),fvCurve,0);
+    fvNFitV(i,1) = flN*fvN;
     fvNErrorV(i,:) = (expfv.fN(i,1)-flN*fvN);
 end
-fvNRmse = sqrt(mean(fvNErrorV.^2));

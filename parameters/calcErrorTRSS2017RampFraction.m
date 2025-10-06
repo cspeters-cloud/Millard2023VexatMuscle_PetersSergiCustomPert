@@ -1,5 +1,7 @@
-function [optError,optErrorValues, figDebugFitting,ratFibrilModelsUpd,benchRecord] =...
-    calcErrorTRSS2017RampFraction(optParams,...
+function [optError,optErrorValues, figDebugFitting,...
+            ratFibrilModelsUpd,benchRecord] =...
+            calcErrorTRSS2017RampFraction(...
+                       optParams,...
                        fittingFraction, npts, ...
                        ratFibrilModels, expTRSS2017,simConfig,...
                        figDebugFitting,subPlotPanel,lineColorsSimTRSS2017)
@@ -12,6 +14,8 @@ function [optError,optErrorValues, figDebugFitting,ratFibrilModelsUpd,benchRecor
     optError=0;
     optErrorValues.x = [];
     optErrorValues.y = [];
+    optErrorValues.yFit=[];
+    optErrorValues.yerr=[];
 
     for idxTrial = simConfig.trials
 
@@ -231,6 +235,8 @@ function [optError,optErrorValues, figDebugFitting,ratFibrilModelsUpd,benchRecor
                 expfNU = expTRSS2017.activeLengtheningData(idxTrial).y(iq);
         
                 errV = zeros(npts,1);
+                yV = zeros(npts,1);
+                yFitV = zeros(npts,1);
                 for k=1:1:npts
                     lceN = benchRecord.normFiberLength(k,idx).*lceOptMdl;
                     fN   = benchRecord.normFiberForce(k,idx);
@@ -238,21 +244,30 @@ function [optError,optErrorValues, figDebugFitting,ratFibrilModelsUpd,benchRecor
                     expfN = interp1(expLceU,...
                                     expfNU,...
                                     lceN);
+                    yV(k,1)=expfN;
+                    yFitV(k,1)=fN;
                     errV(k,1) =(expfN-fN);
                 end
                 if(isempty(optErrorValues))
                     optErrorValues.x = zeros(npts,3);                    
                     optErrorValues.y = zeros(npts,3);
+                    optErrorValues.yFit = zeros(npts,3);
+                    optErrorValues.yErr = zeros(npts,3);
                 end
                 optErrorValues.x(:,idx) = ...
                     benchRecord.normFiberLength(:,idx).*lceOptMdl;
-                optErrorValues.y(:,idx) = errV;
+                optErrorValues.y(:,idx) = yV;
+                optErrorValues.yFit(:,idx) = yFitV;
+                optErrorValues.yErr(:,idx) = errV;
                 optError = optError+sqrt(mean(errV.^2));                
             case 'xeStiffnessDampingScaling'
                 [expLceU,iq] = unique(expTRSS2017.activeLengtheningData(idxTrial).x);
                 expfNU = expTRSS2017.activeLengtheningData(idxTrial).y(iq);
         
                 errV = zeros(npts,1);
+                yV = zeros(npts,1);
+                yFitV = zeros(npts,1);
+                
                 for k=1:1:npts
                     lceN = benchRecord.normFiberLength(k,idx).*lceOptMdl;
                     fN   = benchRecord.normFiberForce(k,idx);
@@ -260,15 +275,22 @@ function [optError,optErrorValues, figDebugFitting,ratFibrilModelsUpd,benchRecor
                     expfN = interp1(expLceU,...
                                     expfNU,...
                                     lceN);
+                    yV(k,1)=expfN;
+                    yFitV(k,1)=fN;
                     errV(k,1) = expfN-fN;
                 end
                 if(isempty(optErrorValues))
                     optErrorValues.x = zeros(npts,3);
                     optErrorValues.y = zeros(npts,3);
+                    optErrorValues.yFit = zeros(npts,3);
+                    optErrorValues.yErr = zeros(npts,3);
                 end
                 optErrorValues.x(:,idx) = ...
                     benchRecord.normFiberLength(:,idx).*lceOptMdl;
-                optErrorValues.y(:,idx) = errV;                
+                optErrorValues.y(:,idx)     = yV; 
+                optErrorValues.yFit(:,idx)  = yFitV; 
+                optErrorValues.yErr(:,idx)  = errV; 
+                
                 optError = optError+sqrt(mean(errV.^2));
             case 'QToF'
                lopt = ratFibrilModelsUpd(idxTrial).sarcomere.optimalSarcomereLength;
@@ -284,7 +306,7 @@ function [optError,optErrorValues, figDebugFitting,ratFibrilModelsUpd,benchRecor
                %
                mdlX = optParams.exp(idxTrial).x;               
                mdlY = zeros(size(optParams.exp(idxTrial).x));
-
+                
                for i=1:1:length(mdlX)
                    mdlY(i,1)=interp1(benchRecord.normFiberLength(idx0:idx1,idx).*lopt,...
                                      benchRecord.normFiberForce(idx0:idx1,idx),...
@@ -294,9 +316,13 @@ function [optError,optErrorValues, figDebugFitting,ratFibrilModelsUpd,benchRecor
                if(isempty(optErrorValues))
                  optErrorValues.x = zeros(length(mdlX),3);
                  optErrorValues.y = zeros(length(mdlX),3);
+                 optErrorValues.yFit= zeros(length(mdlX),3);
+                 optErrorValues.yErr = zeros(length(mdlX),3);
                end
-               optErrorValues.x(:,idx) = mdlX;
-               optErrorValues.y(:,idx) = (mdlY - optParams.exp(idxTrial).y);               
+               optErrorValues.x(:,idx)      = mdlX;
+               optErrorValues.y(:,idx)      = optParams.exp(idxTrial).y;
+               optErrorValues.yFit(:,idx)   = mdlY;
+               optErrorValues.yErr(:,idx)   = (mdlY - optParams.exp(idxTrial).y);               
                 
                optError = optError+sqrt(mean((mdlY - optParams.exp(idxTrial).y).^2));                       
             case 'QToK'
@@ -332,7 +358,9 @@ function [optError,optErrorValues, figDebugFitting,ratFibrilModelsUpd,benchRecor
                  optErrorValues.y = zeros(1,3);
                end
                optErrorValues.x(:,idx) = [min(mdlX);max(mdlX)];                              
-               optErrorValues.y(:,idx) = [1;1].*(mdlSlope-optParams.exp(idxTrial).dydx);               
+               optErrorValues.y(:,idx)      = optParams.exp(idxTrial).dydx;
+               optErrorValues.yFit(:,idx)   = mdlSlope;
+               optErrorValues.yErr(:,idx)   = [1;1].*(mdlSlope-optParams.exp(idxTrial).dydx);               
 
                optError = optError+(mdlSlope-optParams.exp(idxTrial).dydx).^2;
                
@@ -360,9 +388,13 @@ function [optError,optErrorValues, figDebugFitting,ratFibrilModelsUpd,benchRecor
                if(isempty(optErrorValues))
                  optErrorValues.x = zeros(length(mdlX),3);
                  optErrorValues.y = zeros(length(mdlX),3);
+                 optErrorValues.yFit = zeros(length(mdlX),3);
+                 optErrorValues.yErr = zeros(length(mdlX),3);
                end
                optErrorValues.x(:,idx) = mdlX;
-               optErrorValues.y(:,idx) = mdlY - optParams.exp(idxTrial).y;               
+               optErrorValues.y(:,idx)      = optParams.exp(idxTrial).y;               
+               optErrorValues.yFit(:,idx)   = mdlY;                              
+               optErrorValues.yErr(:,idx)   = optParams.exp(idxTrial).y-mdlY;               
 
                optError = optError+sqrt(mean((mdlY - optParams.exp(idxTrial).y).^2));
 
