@@ -573,7 +573,7 @@ for idxTrial=simConfig.trials
 
     x0 = expTRSS2017.activeLengtheningData(idxTrial).x(1,1);
     x1 = expTRSS2017.activeLengtheningData(idxTrial).x(end);
-    xStart= x0 + 0.5*(x1-x0);
+    xStart= x0 + 0.125*(x1-x0);
     expXTmp = [0:0.1:1]'.*(x1-xStart) + xStart;
 
     [expLceU,iq] = unique(expTRSS2017.activeLengtheningData(idxTrial).x);
@@ -602,8 +602,8 @@ for idxTrial=simConfig.trials
 end
 
 
-if(fittingConfig.fitQToF ==1 || fittingConfig.fitQToK)
-    assert(fittingConfig.fitQToF && fittingConfig.fitQToK == 0,...
+if(fittingConfig.fitQToF ==1 || fittingConfig.fitQToK == 1)
+    assert(~(fittingConfig.fitQToF && fittingConfig.fitQToK),...
       'Error: fitting Q to force and also Q to stiffness does not make sense');
     
     %
@@ -864,8 +864,8 @@ if(fittingConfig.fitf1HNPreload == 1)
         end
 
 
-        f1HNPreload=0.2;
-        f1HNPreloadDelta=f1HNPreload*0.5;
+        f1HNPreload=0;
+        f1HNPreloadDelta=0.25;
 
         optParams.name  = 'f1HNPreload';
         optParams.value = f1HNPreload;
@@ -930,14 +930,43 @@ if(fittingConfig.fitf1HNPreload == 1)
             f1HNPreloadDelta=f1HNPreloadDelta*0.5;
 
         end
-        
-        fitInfo.f1HNPreload.rmse    = optErrorBest;
-        fitInfo.f1HNPreload.x    = optErrorValuesBest.x;
-        fitInfo.f1HNPreload.y      = optErrorValuesBest.y;
-        fitInfo.f1HNPreload.yFit    = optErrorValuesBest.yFit;
-        fitInfo.f1HNPreload.yErr    = optErrorValuesBest.yErr;
-        fitInfo.f1HNPreload.arg     = f1HNPreloadBest;   
-        fitInfo.f1HNPreload.argDelta = f1HNPreloadDelta*2;
+
+        if(fittingConfig.titin.individuallyFit==1)
+            if(isnan(fitInfo.f1HNPreload.rmse))
+                fitInfo.f1HNPreload.rmse = optErrorBest;
+                fitInfo.f1HNPreload.x  = optErrorValuesBest.x(:,idxTrial);
+                fitInfo.f1HNPreload.y     = optErrorValuesBest.y(:,idxTrial);
+                fitInfo.f1HNPreload.yFit  = optErrorValuesBest.yFit(:,idxTrial);                    
+                fitInfo.f1HNPreload.yErr  = optErrorValuesBest.yErr(:,idxTrial);
+                fitInfo.f1HNPreload.arg  = QBest;            
+                fitInfo.f1HNPreload.argDelta = QDelta*2;
+
+            else
+                fitInfo.f1HNPreload.rmse = [fitInfo.f1HNPreload.rmse, optErrorBest];
+                fitInfo.f1HNPreload.x  = [fitInfo.f1HNPreload.x,  optErrorValuesBest.x(:,idxTrial)];
+                fitInfo.f1HNPreload.y      = [fitInfo.f1HNPreload.y,      optErrorValuesBest.y(:,idxTrial)];
+                fitInfo.f1HNPreload.yFit   = [fitInfo.f1HNPreload.yFit,   optErrorValuesBest.yFit(:,idxTrial)];
+                fitInfo.f1HNPreload.yErr   = [fitInfo.f1HNPreload.yErr,   optErrorValuesBest.yErr(:,idxTrial)];
+                fitInfo.f1HNPreload.arg  = [fitInfo.f1HNPreload.arg,  QBest];            
+                fitInfo.f1HNPreload.argDelta = QDelta*2;
+            end
+        else
+            fitInfo.f1HNPreload.rmse = optErrorBest;
+            fitInfo.f1HNPreload.x  = optErrorValuesBest.x;
+            fitInfo.f1HNPreload.y     = optErrorValuesBest.y;
+            fitInfo.f1HNPreload.yFit  = optErrorValuesBest.yFit;
+            fitInfo.f1HNPreload.yErr  = optErrorValuesBest.yErr;                
+            fitInfo.f1HNPreload.arg  = QBest;           
+            fitInfo.f1HNPreload.argDelta = QDelta*2;
+        end
+
+%         fitInfo.f1HNPreload.rmse    = optErrorBest;
+%         fitInfo.f1HNPreload.x    = optErrorValuesBest.x;
+%         fitInfo.f1HNPreload.y      = optErrorValuesBest.y;
+%         fitInfo.f1HNPreload.yFit    = optErrorValuesBest.yFit;
+%         fitInfo.f1HNPreload.yErr    = optErrorValuesBest.yErr;
+%         fitInfo.f1HNPreload.arg     = f1HNPreloadBest;   
+%         fitInfo.f1HNPreload.argDelta = f1HNPreloadDelta*2;
         
         fprintf('%1.2e\tfitting trial %i: f1HNPreload rmse (end)\n',...
             optErrorBest,idxTrial);
@@ -1032,7 +1061,7 @@ optParams.expY  = [];
 optParams.expDYDX = nan;
 
 simConfigTmp=simConfig;
-simConfigTmp.trials =[1,2,3];
+simConfigTmp.trials =simConfig.trials;
 simConfigTmp.flag_debugFitting=0;
 fittingFraction=1;
 npts=100;

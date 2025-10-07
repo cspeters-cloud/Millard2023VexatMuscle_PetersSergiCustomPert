@@ -340,6 +340,11 @@ function [optError,optErrorValues, figDebugFitting,...
                mdlX = optParams.exp(idxTrial).x;               
                mdlY = zeros(size(optParams.exp(idxTrial).x));
 
+               for i=1:1:length(mdlX)
+                   mdlY(i,1)=interp1(benchRecord.normFiberLength(idx0:idx1,idx).*lopt,...
+                                     benchRecord.normFiberForce(idx0:idx1,idx),...
+                                     mdlX(i,1));                   
+               end
                 
                %
                % Fit a line to this data

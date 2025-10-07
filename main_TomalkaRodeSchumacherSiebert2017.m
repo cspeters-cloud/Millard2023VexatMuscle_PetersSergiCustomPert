@@ -13,7 +13,7 @@ clear all;
 %%
 simConfig.runFitting              = 0; 
 simConfig.generatePlots           = 1;
-simConfig.fitToIndividualTrials   = 1; 
+simConfig.fitToIndividualTrials   = 0; 
 % 0: A single parameter that best fits all trials will be solved for 
 % 1: The parameters that best fit each trial will be solved for
 % Note: this only applies to a subset of parameters
@@ -34,18 +34,18 @@ fittingConfig.fitFv             =1;
 fittingConfig.fitTimeConstant   =0; 
 %Lengthening time constant in Eqn. 16 of Millard, Franklin, Herzog
 
-fittingConfig.fitKx             =1;
-fittingConfig.fitQToF           =1;
-fittingConfig.fitQToK           =0;
-fittingConfig.fitf1HNPreload    =0;
+fittingConfig.fitKx             =0;
+fittingConfig.fitQToF           =0;
+fittingConfig.fitQToK           =1;
+fittingConfig.fitf1HNPreload    =1;
 
-assert(fittingConfig.fitQToF && fittingConfig.fitQToK == 0,...
+assert(~fittingConfig.fitQToF && fittingConfig.fitQToK,...
   'Error: fitting Q to force and also Q to stiffness does not make sense');
 
 fittingConfig.numberOfBisections = 10;
 fittingConfig.idxFvKey = 3;
 fittingConfig.idxFlKey = 1;
-fittingConfig.titin.trials = [1,2,3]; 
+fittingConfig.titin.trials = simConfig.trials; 
 % [1]    : will fit just trial 1
 % [1,2,3]: will fit to trials 1,2,3
 fittingConfig.titin.individuallyFit = simConfig.fitToIndividualTrials; 
@@ -56,7 +56,7 @@ fittingConfig.titin.applyToAllTrials = 1;
     %If a fittingConfig.titin.trials is a single trial, then setting
     %this flag to 1 will apply the fitted parameters to all other trials
 
-pubPlotOptions.useSmoothedStiffnessData     = 1;
+pubPlotOptions.plotSmoothedStiffnessData    = 1;
 pubPlotOptions.plotRawStiffnessData         = 0;
 pubPlotOptions.stiffnessLowerForceBound     = 0.05;
 
@@ -245,13 +245,48 @@ expTRSS2017 = expData(expIndices.index_TRSS2017);
 ratFibrilModelsFitted = ratFibrilModelsDefault;
 fidFitting = [];
 
-fittingTrialsStr = '';
+% Add the fitting options to the name
+fittingOptions = fields(fittingConfig);
+fittingNames = [];
+fittingAbbr = [];
+for i=1:1:length(fittingOptions)
+    if(contains(fittingOptions{i},'fit'))
+        name = fittingOptions{i};
+        abbr = name(4:end);
+        if(length(abbr)>4)
+            abbr=abbr(1,1:4);
+        end
+        
+        if(isempty(fittingNames))
+            fittingNames = [{name}];
+            fittingAbbr = [{abbr}];
+        else
+            fittingNames = [fittingNames,{name}];
+            fittingAbbr = [fittingAbbr,{abbr}];
+        end
+
+    end
+end
+
+
+
+fittingTrialsStr = '_';
 for i=1:1:length(fittingConfig.titin.trials)
-    fittingTrialsStr = [fittingTrialsStr,num2str(fittingConfig.titin.trials(1,i))];
+    fittingTrialsStr = ...
+        [fittingTrialsStr,num2str(fittingConfig.titin.trials(1,i))];
 end
+
+for i=1:1:length(fittingNames)
+    if(fittingConfig.(fittingNames{i})==1)
+        fittingTrialsStr = [fittingTrialsStr,...
+            '_',fittingAbbr{i}];
+    end
+end
+
 if(fittingConfig.titin.individuallyFit==1)
-    fittingTrialsStr = [fittingTrialsStr,'i'];
+    fittingTrialsStr = [fittingTrialsStr,'_i'];
 end
+
 
 fittingConfig.trialStr = fittingTrialsStr;
 
@@ -274,11 +309,13 @@ if(simConfig.runFitting==1)
                              projectFolders);
 
     save(fullfile(projectFolders.output_structs_FittedModels,...
-        ['ratTRSS2017EDLFibrilActiveTitinFitted',fittingConfig.trialStr,'.mat']),...
+        ['ratTRSS2017EDLFibrilActiveTitinFitted',...
+        fittingConfig.trialStr,'.mat']),...
         'ratFibrilModelsFitted');
 
     save(fullfile(projectFolders.output_structs_TRSS2017,...
-         ['benchRecordVexat_TRSS2017_fitted',fittingConfig.trialStr,'.mat']),...
+         ['benchRecordVexat_TRSS2017_fitted',...
+          fittingConfig.trialStr,'.mat']),...
          'benchRecordFitted');
 
     save(fullfile(projectFolders.output_structs_TRSS2017,...
@@ -324,12 +361,9 @@ if(simConfig.generatePlots==1)
     configPlotExporter;
 
     filePath = fullfile(projectFolders.output_plots_TRSS2017,...
-                        'fig_Sim_TRSS2017_fitToAll_Pub.pdf');
+                        ['fig_Sim_TRSS2017',...
+                        fittingConfig.trialStr,'.pdf']);
     
-    if(fittingConfig.titin.individuallyFit==1)
-        filePath = fullfile(projectFolders.output_plots_TRSS2017,...
-                            'fig_Sim_TRSS2017_IndividualFit_Pub.pdf');
-    end
     print('-dpdf', filePath); 
 
 end
