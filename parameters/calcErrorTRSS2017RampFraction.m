@@ -365,7 +365,7 @@ function [optError,optErrorValues, figDebugFitting,...
                optErrorValues.x(:,idx) = [min(mdlX);max(mdlX)];                              
                optErrorValues.y(:,idx)      = optParams.exp(idxTrial).dydx;
                optErrorValues.yFit(:,idx)   = mdlSlope;
-               optErrorValues.yErr(:,idx)   = [1;1].*(mdlSlope-optParams.exp(idxTrial).dydx);               
+               optErrorValues.yErr(:,idx)   = (mdlSlope-optParams.exp(idxTrial).dydx);               
 
                optError = optError+(mdlSlope-optParams.exp(idxTrial).dydx).^2;
                

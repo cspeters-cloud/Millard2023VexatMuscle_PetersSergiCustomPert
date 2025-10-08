@@ -1200,9 +1200,11 @@ if(flag_evaluateInitializationFunctions == 0)
     
     lambda  =   0;
     tauValue = tau;
+    scaleDamping =1;
     if(useVariableTau==1)
-        tauBlending = 0.5*tanh(dlaNN/0.01)+0.5;
+        tauBlending = 0.5*tanh((dlaNN-(tauW*2))/tauW)+0.5;
         tauValue = tauS*(1-tauBlending) + tauL*tauBlending;
+        scaleDamping= 1*(1-tauBlending) + 0.8125*(tauL/tauS)*tauBlending;
     end
 
     if(dlaNN > 0.1)
@@ -1210,7 +1212,7 @@ if(flag_evaluateInitializationFunctions == 0)
     end
     ddlaHN_HillError    =   ((fxHN - a*flN*(fvN))/(tauValue));
     %ddlaHN_HillError    =   ((fxHN - a*flN*(fvN))/(tau));
-    ddlaHN_Damping      = - betaCXHN*dlaNN;
+    ddlaHN_Damping      = - scaleDamping*betaCXHN*dlaNN;
     
     ka                  = (a/lowActivationThreshold);
     ddlaHN_Tracking     =   lowActivationGain*exp(-ka*ka)*(lxHN + dlxHN);

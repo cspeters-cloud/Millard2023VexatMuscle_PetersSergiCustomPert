@@ -83,6 +83,8 @@ projectFolders.output_plots_TRSS2017      = fullfile(projectFolders.output_plots
 
 projectFolders.output_tables_KBR1994      = fullfile(projectFolders.output_tables,'KirschBoskovRymer1994');
 projectFolders.output_tables_MuscleCurves = fullfile(projectFolders.output_tables,'MuscleCurves');
+projectFolders.output_tables_TRSS2017     = fullfile(projectFolders.output_tables, 'TomalkaRodeSchumacherSiebert2017'); 
+
 
 projectFolders.output_structs_FittedModels   = fullfile(projectFolders.output_structs, 'FittedModels'                        );
 projectFolders.output_structs_HL2002         = fullfile(projectFolders.output_structs, 'HerzogLeonard2002'                   );   

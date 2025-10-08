@@ -4,19 +4,33 @@
 % SPDX-License-Identifier: MIT
 %
 %%
-clc;
-close all;
-clear all;
+flag_OuterLoopMode=1;
+
+if(flag_OuterLoopMode==0)
+    clc;
+    close all;
+    clear all;
+
+    simConfigInput.runFitting              = 0; 
+    simConfigInput.generatePlots           = 0;
+    simConfigInput.fitToIndividualTrials   = 1; 
+
+end
+
 
 %%
 % Parameters
 %%
-simConfig.runFitting              = 0; 
-simConfig.generatePlots           = 1;
-simConfig.fitToIndividualTrials   = 0; 
+simConfig.runFitting              = simConfigInput.runFitting; 
+simConfig.generatePlots           = simConfigInput.generatePlots;
+simConfig.fitToIndividualTrials   = simConfigInput.fitToIndividualTrials; 
 % 0: A single parameter that best fits all trials will be solved for 
 % 1: The parameters that best fit each trial will be solved for
 % Note: this only applies to a subset of parameters
+simConfig.runSandbox              = 0;
+simConfig.runSimUpdateResults     = 0;
+
+%Simulations for testing
 
 simConfig.trials                  = [1,2,3];
 simConfig.defaultTrialId          = 0; %Set to 1,2,3 to fit to just this trial
@@ -31,7 +45,16 @@ modelConfig.experimentName   = 'TRSS2017';
 
 fittingConfig.fitFl             =1;
 fittingConfig.fitFv             =1;
+fittingConfig.fv.scaleEnhancement=1;
+if(simConfigInput.manuallySetTimeConstant==1)
+    fittingConfig.fv.scaleEnhancement=0.75;
+end
+
 fittingConfig.fitTimeConstant   =0; 
+fittingConfig.manuallySetTimeConstant = simConfigInput.manuallySetTimeConstant;
+assert(~(fittingConfig.fitTimeConstant ...
+    && fittingConfig.manuallySetTimeConstant), ...
+    'Error: it does not make sense to fit something that is set manually');
 %Lengthening time constant in Eqn. 16 of Millard, Franklin, Herzog
 
 fittingConfig.fitKx             =0;
@@ -216,8 +239,9 @@ for idxTrial = simConfig.trials
     % Use the fast-shortening, slow-lengthening model
     %    
     responseTimeScaling=1;
-    if(fittingConfig.fitTimeConstant==1)
-        responseTimeScaling=10;
+    if(fittingConfig.fitTimeConstant==1 ...
+            || fittingConfig.manuallySetTimeConstant==1)
+        responseTimeScaling=30;
     end
     
     ratFibrilModelsDefault(idxTrial).sarcomere.slidingTimeConstantBlendingParameter = 0.01;
@@ -264,8 +288,22 @@ for i=1:1:length(fittingOptions)
             fittingNames = [fittingNames,{name}];
             fittingAbbr = [fittingAbbr,{abbr}];
         end
-
     end
+    if(contains(fittingOptions{i},'manuallySet'))
+            name = fittingOptions{i};
+            abbr = name(12:end);
+            if(length(abbr)>4)
+                abbr=abbr(1,1:4);
+            end
+            
+            if(isempty(fittingNames))
+                fittingNames = [{name}];
+                fittingAbbr = [{['m-',abbr]}];
+            else
+                fittingNames = [fittingNames,{name}];
+                fittingAbbr = [fittingAbbr,{['m-',abbr]}];
+            end
+        end    
 end
 
 
@@ -290,6 +328,73 @@ end
 
 fittingConfig.trialStr = fittingTrialsStr;
 
+%%
+% Sandbox
+%%
+if(simConfig.runSandbox==1)
+
+    figSandbox=figure;
+
+    tmp = load(fullfile(projectFolders.output_structs_FittedModels,...
+            ['ratTRSS2017EDLFibrilActiveTitinFitted',...
+             fittingConfig.trialStr,'.mat']));
+
+    ratFibrilModelsFitted=tmp.ratFibrilModelsFitted;
+
+    success=runParameterStudyRatFibrilTRSS2017(...
+                             ratFibrilModelsFitted,...
+                             expTRSS2017,...
+                             simConfig,...
+                             fittingConfig,...
+                             plotConfig);
+end
+%%
+% Run simulations and update the results
+%%
+if(simConfig.runSimUpdateResults==1)
+    tmp = load(fullfile(projectFolders.output_structs_FittedModels,...
+            ['ratTRSS2017EDLFibrilActiveTitinFitted',...
+             fittingConfig.trialStr,'.mat']));
+
+    ratFibrilModelsFitted=tmp.ratFibrilModelsFitted;
+    optParams.name  = 'simulate';
+    optParams.value = nan;
+    optParams.expX  = [];
+    optParams.expY  = [];
+    optParams.expDYDX = nan;
+    
+    simConfigTmp=simConfig;
+    simConfigTmp.trials =simConfig.trials;
+    simConfigTmp.flag_debugFitting=0;
+    fittingFraction=1;
+    npts=500;
+    
+    figDebugFitting=figure;
+    
+    [optError,optErrorValues,figDebugFitting,...
+        ratFibrilModelsFittedUpd,benchRecordFitted] =...
+        calcErrorTRSS2017RampFraction(optParams,fittingFraction,npts,...
+                   ratFibrilModelsFitted, expTRSS2017,simConfigTmp,...
+                   figDebugFitting,plotConfig.subPlotPanel,...
+                   plotConfig.lineColors.simTitinK);
+
+
+    save(fullfile(projectFolders.output_structs_FittedModels,...
+        ['ratTRSS2017EDLFibrilActiveTitinFitted',...
+        fittingConfig.trialStr,'.mat']),...
+        'ratFibrilModelsFitted');
+
+    save(fullfile(projectFolders.output_structs_TRSS2017,...
+         ['benchRecordVexat_TRSS2017_fitted',...
+          fittingConfig.trialStr,'.mat']),...
+         'benchRecordFitted');
+
+%     save(fullfile(projectFolders.output_structs_TRSS2017,...
+%          ['fittingInfo_ratTRSS2017EDLFibrilActiveTitinFitted',...
+%           fittingConfig.trialStr,'.mat']),...
+%          'fitInfo');
+    
+end
 
 %%
 % Fitting
@@ -341,6 +446,69 @@ if(simConfig.generatePlots==1)
              fittingConfig.trialStr,'.mat']));
 
     ratFibrilModelsFitted=tmp.ratFibrilModelsFitted;
+    
+    fidParams = fopen(fullfile(projectFolders.output_tables_TRSS2017,...
+                    ['fittingInfo_ratTRSS2017EDLFibrilActiveTitinFitted',...
+                      fittingConfig.trialStr,'.tex']),'w');
+    
+    fitInfoFields=fields(fitInfo);
+    fprintf(fidParams,'%s\n','\begin{tabular}{l l l l}');
+    fprintf(fidParams,'%s\n','Parameter & Trial 1 & Trial 2 & Trial 3\\');
+
+    for idxF=1:1:length(fitInfoFields)
+        if(~isnan(fitInfo.(fitInfoFields{idxF}).rmse))
+            if(simConfig.fitToIndividualTrials)
+                fprintf(fidParams,...
+                        '%s Param',...
+                        fitInfoFields{idxF});
+                if(size(fitInfo.(fitInfoFields{idxF}).arg,2)>1)
+                    for i=1:1:size(fitInfo.(fitInfoFields{idxF}).arg,2)
+                        fprintf(fidParams,...
+                            ' & %1.3f',...
+                            fitInfo.(fitInfoFields{idxF}).arg(1,i));
+                    end
+                else
+                    fprintf(fidParams,...
+                        ' & \\multicol{3}{c}{%1.3f}\\\\ \n',...
+                        fitInfo.(fitInfoFields{idxF}).arg(1,1));
+                end
+                fprintf(fidParams,'\n');
+                
+                fprintf(fidParams,...
+                        '%s RMSE',...
+                        fitInfoFields{idxF});
+                    
+                for i=1:1:size(fitInfo.(fitInfoFields{idxF}).yErr,2)
+                    fprintf(fidParams,...
+                        ' & %1.3f',...
+                        sqrt(mean(fitInfo.(fitInfoFields{idxF}).yErr(:,i).^2)) );
+                end
+                fprintf(fidParams,'\n');
+            else
+                fprintf(fidParams,...
+                        '%s Param',...
+                        fitInfoFields{idxF});                    
+                fprintf(fidParams,...
+                    ' & \\multicol{3}{c}{%1.3f}\\\\ \n',...
+                    fitInfo.(fitInfoFields{idxF}).arg(1,1));
+                
+                fprintf(fidParams,...
+                        '%s RMSE',...
+                        fitInfoFields{idxF});                    
+                for i=1:1:size(fitInfo.(fitInfoFields{idxF}).yErr,2)
+                    fprintf(fidParams,...
+                        ' & %1.3f',...
+                        sqrt(mean(fitInfo.(fitInfoFields{idxF}).yErr(:,i).^2)) );
+                end
+                fprintf(fidParams,'%s\n','\\');
+
+            end
+        end
+    end
+    fprintf(fidParams,'%s\n','\end{tabular}');
+
+    fclose(fidParams);
+
 
     figPub=figure;
 

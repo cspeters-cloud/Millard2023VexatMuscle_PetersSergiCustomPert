@@ -40,13 +40,15 @@ fidFitting = fopen(fullfile(projectFolders.output_structs_TRSS2017,...
 %%
 % Fitting the active-force-length relation
 %%
+
+figDebugFitting = figure;
+
 if(fittingConfig.fitFl==1)
 
     %%
     % fal fitting
     %%
 
-    figDebugFitting = figure;
 
     dfalN = 0.2;
 
@@ -120,20 +122,20 @@ if(fittingConfig.fitFl==1)
             argBest=argL;
             errBest=errLMag;
             fitInfo.fl.rmse = errBest;
-            fitInfo.fl.x = expfl.lce;
-            fitInfo.fl.y = expfl.fN;
-            fitInfo.fl.yFit = flNFitL;            
-            fitInfo.fl.yErr = errL;
+            fitInfo.fl.x = expfl.lce';
+            fitInfo.fl.y = expfl.fN';
+            fitInfo.fl.yFit = flNFitL';            
+            fitInfo.fl.yErr = errL';
             fitInfo.fl.arg = argBest;
             fitInfo.fl.argDelta = argDelta;
         elseif(errRMag < errBest && errRMag < errLMag)
             argBest=argR;
             errBest=errRMag;
             fitInfo.fl.rmse = errBest;
-            fitInfo.fl.x = expfl.lce;
-            fitInfo.fl.y = expfl.fN;
-            fitInfo.fl.yFit = flNFitR;                        
-            fitInfo.fl.yErr = errR;
+            fitInfo.fl.x = expfl.lce';
+            fitInfo.fl.y = expfl.fN';
+            fitInfo.fl.yFit = flNFitR';                        
+            fitInfo.fl.yErr = errR';
             fitInfo.fl.arg = argBest;
             fitInfo.fl.argDelta = argDelta;
         end
@@ -236,6 +238,9 @@ if(fittingConfig.fitFv==1)
         lceN = lce/lceOptMdl;
         fN0  = expTRSS2017.activeLengtheningData(idxTrial).y(1,1);
         fN1  = expTRSS2017.activeLengtheningData(idxTrial).y(idxKey,1);
+
+        fN1 = (fN1-fN0)*fittingConfig.fv.scaleEnhancement + fN0;
+
         fvN = fN1/fN0;
         
         expfv.lceN  = [expfv.lceN;lceN];
@@ -254,7 +259,8 @@ if(fittingConfig.fitFv==1)
 
     arg = 0;
     argBest=arg;
-    delta = 0.1;
+    delta = 0.4*(...
+        ratFibrilModelsFitted(1).curves.fiberForceVelocityCalibratedCurve.ypts(2,3)-1);
     
 
     [fvNErrorV,fvNfitV, fvCurveBest] = ...
@@ -286,12 +292,12 @@ if(fittingConfig.fitFv==1)
             argBest=arg;
             errBest=fvNRmse;
             %errValBest=fvNErrorV;
-            %fvCurveBest=fvCurve;
+            fvCurveBest=fvCurve;
             fitInfo.fv.rmse = errBest;
-            fitInfo.fv.x    = expfv.lceN*lceOptMdl;
-            fitInfo.fv.y    = expfv.fvN;
-            fitInfo.fv.yFit = fvNfitV;
-            fitInfo.fv.yErr = errValBest;
+            fitInfo.fv.x    = (expfv.lceN*lceOptMdl)';
+            fitInfo.fv.y    = expfv.fvN';
+            fitInfo.fv.yFit = fvNfitV';
+            fitInfo.fv.yErr = errValBest';
             fitInfo.fv.arg  = argBest;
             fitInfo.fv.argDelta = delta;
             
@@ -307,11 +313,12 @@ if(fittingConfig.fitFv==1)
             if(fvNRmse<errBest)
                 argBest=arg;
                 errBest=fvNRmse;
+                fvCurveBest=fvCurve;                
                 fitInfo.fv.rmse = errBest;
-                fitInfo.fv.x    = expfv.lceN*lceOptMdl;
-                fitInfo.fv.y    = expfv.fvN;
-                fitInfo.fv.yFit = fvNfitV;
-                fitInfo.fv.yErr = errValBest;
+                fitInfo.fv.x    = (expfv.lceN*lceOptMdl)';
+                fitInfo.fv.y    = expfv.fvN';
+                fitInfo.fv.yFit = fvNfitV';
+                fitInfo.fv.yErr = errValBest';
                 fitInfo.fv.arg  = argBest;
                 fitInfo.fv.argDelta = delta;
             end
@@ -364,7 +371,7 @@ end
 %%
 % Fitting the properties of the model for the very first 100 ms of data
 %%
-fittingFraction = 1/8;
+fittingFraction = 0.03; %Just to the first enhancement and recovery
 npts = round(200*fittingFraction);
 
 
@@ -400,7 +407,7 @@ if(fittingConfig.fitTimeConstant==1)
     % Fit the lengthening time constant
     %
     
-    bestValue = 20;
+    bestValue = 30;
     deltaValue=bestValue*0.5;
 
     optParams.name = 'responseTimeScaling';
@@ -415,13 +422,24 @@ if(fittingConfig.fitTimeConstant==1)
                    figDebugFitting,plotConfig.subPlotPanel,...
                    plotConfig.lineColors.simXE);
 
+    flag_debugTimeConstantFitting=1;
+    if(simConfig.flag_debugFitting==1 || flag_debugTimeConstantFitting)
+        figure(figDebugFitting);
+        subplot('Position',reshape(plotConfig.subPlotPanel(2,1,:),1,4));
+
+        for i=1:1:3
+            plot(benchRecord.normFiberLength(:,i).*lceOptMdl,...
+                 benchRecord.normFiberForce(:,i),'-b');
+            hold on;
+        end
+    end
     fprintf('%1.2e\tfitting: sliding time-constant (start)\n',bestError);
     fprintf('%e\t sliding-time constant scaling (end)\n\n',bestValue);
 
     fprintf(fidFitting,'%1.2e\tfitting: sliding time-constant (start)\n',bestError);
     fprintf(fidFitting,'%e\t sliding-time constant scaling (start)\n\n',bestValue);
 
-
+    benchRecordBest=[];
 
     for i=1:1:fittingConfig.numberOfBisections
         fprintf('%i/%i\n',i,fittingConfig.numberOfBisections);
@@ -441,6 +459,7 @@ if(fittingConfig.fitTimeConstant==1)
            bestErrorValues = errorValues;
            bestValue = optParams.value;
            ratFibrilModelsFitted=ratFibrilModelsUpd;
+           benchRecordBest=benchRecord;
         else
             optParams.value=bestValue+deltaValue;
             [errorVal,errorValues,figDebugFitting,...
@@ -455,10 +474,22 @@ if(fittingConfig.fitTimeConstant==1)
                 bestErrorValues = errorValues;
                 bestValue = optParams.value;               
                 ratFibrilModelsFitted=ratFibrilModelsUpd;
+                benchRecordBest=benchRecord;               
             end
         end
         deltaValue=deltaValue*0.5;
     end
+
+    if(simConfig.flag_debugFitting==1 || flag_debugTimeConstantFitting)
+        figure(figDebugFitting);
+        subplot('Position',reshape(plotConfig.subPlotPanel(2,1,:),1,4));
+
+        for i=1:1:3
+            plot(benchRecord.normFiberLength(:,i).*lceOptMdl,...
+                 benchRecord.normFiberForce(:,i),'-b');
+            hold on;
+        end
+    end    
     fprintf('%1.2e\tfitting: sliding time-constant (end)\n',bestError);
     fprintf('%e\t sliding-time constant scaling (end)\n\n',bestValue);
 
@@ -1064,7 +1095,7 @@ simConfigTmp=simConfig;
 simConfigTmp.trials =simConfig.trials;
 simConfigTmp.flag_debugFitting=0;
 fittingFraction=1;
-npts=100;
+npts=500;
 
 figDebugFitting=figure;
 
