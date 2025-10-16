@@ -23,7 +23,7 @@ benchRecordFitted=[];
 
 
 fitInfo = struct('fl',[],'fv',[],'timeConstant',[],'Kx',[],...
-                    'QToF',[],'QToK',[],'f1HNPreload',[]);
+                    'QToF',[],'QToK',[],'f1HNPreload',[],'l1HNOffset',[]);
 
 fitInfoFields= fields(fitInfo);
 
@@ -991,13 +991,6 @@ if(fittingConfig.fitf1HNPreload == 1)
             fitInfo.f1HNPreload.argDelta = QDelta*2;
         end
 
-%         fitInfo.f1HNPreload.rmse    = optErrorBest;
-%         fitInfo.f1HNPreload.x    = optErrorValuesBest.x;
-%         fitInfo.f1HNPreload.y      = optErrorValuesBest.y;
-%         fitInfo.f1HNPreload.yFit    = optErrorValuesBest.yFit;
-%         fitInfo.f1HNPreload.yErr    = optErrorValuesBest.yErr;
-%         fitInfo.f1HNPreload.arg     = f1HNPreloadBest;   
-%         fitInfo.f1HNPreload.argDelta = f1HNPreloadDelta*2;
         
         fprintf('%1.2e\tfitting trial %i: f1HNPreload rmse (end)\n',...
             optErrorBest,idxTrial);
@@ -1027,6 +1020,8 @@ if(fittingConfig.fitf1HNPreload == 1)
         else
             ratFibrilModelsFitted=ratFibrilModelsFittedUpd;
         end
+
+
 
         if(flagDebug==1)
             if(exist('figExpSlope2')==0)
@@ -1077,6 +1072,198 @@ if(fittingConfig.fitf1HNPreload == 1)
         end
     end
     
+end
+
+if(fittingConfig.fitl1HNOffset==1)
+    flagDebug=1;
+    simConfigTmp=simConfig;
+    figDebugFittingL1HNOffset=figure;
+
+    loops = length(fittingConfig.titin.trials);
+    if(fittingConfig.titin.individuallyFit==0)
+        loops=1;
+    end
+
+
+    for idxLoop=1:1:loops
+
+        idxTrial=nan;
+        if(fittingConfig.titin.individuallyFit==1)
+            idxTrial = simConfig.trials(1,idxLoop);
+            simConfigTmp.trials = idxTrial;
+        end
+
+
+        l1HNOffset=0;
+        l1HNOffsetDelta=0.25;
+
+        optParams.name  = 'l1HNOffset';
+        optParams.value = l1HNOffset;
+
+        simConfigTmp.flag_debugFitting=0;
+        fittingFraction=1;
+        npts=100;
+        [optError,optErrorValues,figDebugFittingL1HNOffset,...
+            ratFibrilModelsFittedUpd,benchRecord] =...
+            calcErrorTRSS2017RampFraction(optParams,...
+                fittingFraction,npts,...
+                ratFibrilModelsFitted, expTRSS2017,simConfigTmp,...
+                figDebugFittingL1HNOffset,plotConfig.subPlotPanel,...
+                plotConfig.lineColors.simTitinK);
+
+        optErrorBest        = optError;
+        optErrorValuesBest  = optErrorValues;
+        l1HNOffsetBest     = l1HNOffset;
+        dirMap = [1,-1];
+
+
+        if(fittingConfig.titin.individuallyFit==1)
+            fprintf('%1.2e\tfitting trial %i: l1HNOffset rmse (start)\n',...
+                    optErrorBest,idxTrial);
+            fprintf('%e\tl1HNOffset (start)\n',l1HNOffsetBest);    
+            fprintf(fidFitting,...
+                    '%1.2e\tfitting trial %i: l1HNOffset rmse (start)\n',...
+                    optErrorBest,idxTrial);
+            fprintf(fidFitting,...
+                    '%e\tl1HNOffset (start)\n',l1HNOffsetBest);    
+        else
+            fprintf('%1.2e\tfitting all: l1HNOffset rmse (start)\n',...
+                    optErrorBest);
+            fprintf('%e\tl1HNOffset (start)\n',l1HNOffsetBest);    
+            fprintf(fidFitting,...
+                    '%1.2e\tfitting all: l1HNOffset rmse (start)\n',...
+                    optErrorBest);
+            fprintf(fidFitting,...
+                    '%e\tl1HNOffset (start)\n',l1HNOffsetBest);    
+
+        end
+        for i=1:1:fittingConfig.numberOfBisections
+            fprintf('%i/%i\n',i,fittingConfig.numberOfBisections);
+        
+            for j=1:1:length(dirMap)
+                l1HNOffset = l1HNOffsetBest + l1HNOffsetDelta*dirMap(1,j);
+                optParams.value=l1HNOffset;
+                [optError,optErrorValues,figDebugFittingL1HNOffset,...
+                    ratFibrilModelsFittedUpd,benchRecord] =...
+                    calcErrorTRSS2017RampFraction(optParams,...
+                       fittingFraction, npts, ...
+                       ratFibrilModelsFitted, expTRSS2017,simConfigTmp,...
+                       figDebugFittingL1HNOffset,plotConfig.subPlotPanel,...
+                       plotConfig.lineColors.simTitinK);
+                if(optError<optErrorBest)
+                    optErrorBest=optError;
+                    l1HNOffsetBest=l1HNOffset;
+                    optErrorValuesBest=optErrorValues;                    
+                    break;
+                end
+            end
+            
+            l1HNOffsetDelta=l1HNOffsetDelta*0.5;
+
+        end
+
+        if(fittingConfig.titin.individuallyFit==1)
+            if(isnan(fitInfo.l1HNOffset.rmse))
+                fitInfo.l1HNOffset.rmse = optErrorBest;
+                fitInfo.l1HNOffset.x  = optErrorValuesBest.x(:,idxTrial);
+                fitInfo.l1HNOffset.y     = optErrorValuesBest.y(:,idxTrial);
+                fitInfo.l1HNOffset.yFit  = optErrorValuesBest.yFit(:,idxTrial);                    
+                fitInfo.l1HNOffset.yErr  = optErrorValuesBest.yErr(:,idxTrial);
+                fitInfo.l1HNOffset.arg  = l1HNOffsetBest;            
+                fitInfo.l1HNOffset.argDelta = l1HNOffsetDelta*2;
+
+            else
+                fitInfo.l1HNOffset.rmse = [fitInfo.l1HNOffset.rmse, optErrorBest];
+                fitInfo.l1HNOffset.x  = [fitInfo.l1HNOffset.x,  optErrorValuesBest.x(:,idxTrial)];
+                fitInfo.l1HNOffset.y      = [fitInfo.l1HNOffset.y,      optErrorValuesBest.y(:,idxTrial)];
+                fitInfo.l1HNOffset.yFit   = [fitInfo.l1HNOffset.yFit,   optErrorValuesBest.yFit(:,idxTrial)];
+                fitInfo.l1HNOffset.yErr   = [fitInfo.l1HNOffset.yErr,   optErrorValuesBest.yErr(:,idxTrial)];
+                fitInfo.l1HNOffset.arg  = [fitInfo.l1HNOffset.arg,  l1HNOffsetBest];            
+                fitInfo.l1HNOffset.argDelta = l1HNOffsetDelta*2;
+            end
+        else
+            fitInfo.l1HNOffset.rmse = optErrorBest;
+            fitInfo.l1HNOffset.x  = optErrorValuesBest.x;
+            fitInfo.l1HNOffset.y     = optErrorValuesBest.y;
+            fitInfo.l1HNOffset.yFit  = optErrorValuesBest.yFit;
+            fitInfo.l1HNOffset.yErr  = optErrorValuesBest.yErr;                
+            fitInfo.l1HNOffset.arg  = l1HNOffsetBest;           
+            fitInfo.l1HNOffset.argDelta = l1HNOffsetDelta*2;
+        end
+        
+        fprintf('%1.2e\tfitting trial %i: l1HNOffset rmse (end)\n',...
+            optErrorBest,idxTrial);
+        fprintf('%e\tl1HNOffset (end)\n',l1HNOffsetBest);    
+
+        fprintf(fidFitting,...
+            '%1.2e\tfitting trial %i: l1HNOffset rmse (end)\n',...
+            optErrorBest,idxTrial);
+        fprintf(fidFitting,...
+            '%e\tl1HNOffset (end)\n',l1HNOffsetBest);    
+
+        %
+        % Update the parameter struct
+        % 
+        optParams.value=l1HNOffsetBest;
+        [optError,optErrorValues,figDebugFittingL1HNOffset,...
+            ratFibrilModelsFittedUpd,benchRecord] =...
+            calcErrorTRSS2017RampFraction(optParams,...
+               fittingFraction, npts, ...
+               ratFibrilModelsFitted, expTRSS2017,simConfigTmp,...
+               figDebugFittingL1HNOffset,plotConfig.subPlotPanel,...
+               plotConfig.lineColors.simTitinK);
+
+
+        if(fittingConfig.titin.individuallyFit==1)
+            ratFibrilModelsFitted(idxTrial)=ratFibrilModelsFittedUpd(idxTrial);
+        else
+            ratFibrilModelsFitted=ratFibrilModelsFittedUpd;
+        end
+
+        if(flagDebug==1)
+            if(exist('figExpSlope2')==0)
+                figExpSlope2 = figure;
+            end
+            if(fittingConfig.titin.individuallyFit==1)
+                plot(expTRSS2017.activeLengtheningData(idxTrial).x,...
+                     expTRSS2017.activeLengtheningData(idxTrial).y,'-k');
+                hold on;
+                plot(optParams.exp(idxTrial).x,optParams.exp(idxTrial).y,'xk');
+                hold on;
+                plot(optParams.exp(idxTrial).xLine,optParams.exp(idxTrial).yLine,'-b');
+                hold on;
+                plot(benchRecord.normFiberLength(:,idxTrial).*lopt,...
+                     benchRecord.normFiberForce(:,idxTrial),'-r' );
+            
+            else
+                for idxTrial=simConfig.trials
+                    plot(expTRSS2017.activeLengtheningData(idxTrial).x,...
+                         expTRSS2017.activeLengtheningData(idxTrial).y,'-k');
+                    hold on;
+                    plot(optParams.exp(idxTrial).x,optParams.exp(idxTrial).y,'xk');
+                    hold on;
+                    plot(optParams.exp(idxTrial).xLine,optParams.exp(idxTrial).yLine,'-b');
+                    hold on;
+                    plot(benchRecord.normFiberLength(:,idxTrial).*lopt,...
+                         benchRecord.normFiberForce(:,idxTrial),'-r' );
+                end
+
+            end
+            xlabel('X');
+            ylabel('Y');
+            title(sprintf('Trial %i',idxTrial));
+        end        
+
+    end
+
+    if(length(fittingConfig.titin.trials)==1 ...
+            && fittingConfig.titin.applyToAllTrials==1)
+        for i=1:1:length(ratFibrilModelsFitted)
+            if(i ~= fittingConfig.titin.trials(1,1))
+                ratFibrilModelsFitted(i)=ratFibrilModelsFitted(fittingConfig.titin.trials);
+            end
+        end
+    end    
 end
 
 fclose(fidFitting);

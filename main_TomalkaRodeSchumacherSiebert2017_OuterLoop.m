@@ -7,7 +7,7 @@ clear all;
 % There is no transient, but the XE follows fl*fv
 %6
 
-simConfigInput.runFitting              = 1; 
+simConfigInput.runFitting              = 0; 
 simConfigInput.generatePlots           = 1;
 simConfigInput.fitToIndividualTrials   = 1; 
 simConfigInput.manuallySetTimeConstant = 0;

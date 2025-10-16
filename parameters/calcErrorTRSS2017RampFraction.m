@@ -6,8 +6,8 @@ function [optError,optErrorValues, figDebugFitting,...
                        ratFibrilModels, expTRSS2017,simConfig,...
                        figDebugFitting,subPlotPanel,lineColorsSimTRSS2017)
 
-    ratFibrilModelsUpd=ratFibrilModels;
-    errVec = zeros(length(ratFibrilModelsUpd),npts);
+    ratFibrilModelsUpd  = ratFibrilModels;
+    errVec              = zeros(length(ratFibrilModelsUpd),npts);
     numberOfSimulations = length(simConfig.trials);
     benchRecord             = [];
 
@@ -18,8 +18,8 @@ function [optError,optErrorValues, figDebugFitting,...
     optErrorValues.yerr=[];
 
     for idxTrial = simConfig.trials
-
-        %Update the model parameters
+        
+        %Update the model parameters        
         switch optParams.name
 
             case 'responseTimeScaling'
@@ -89,6 +89,10 @@ function [optError,optErrorValues, figDebugFitting,...
               
             case 'f1HNPreload'
                 ratFibrilModelsUpd(idxTrial).sarcomere.f1HNPreload= ...
+                    optParams.value;
+
+            case 'l1HNOffset'
+                ratFibrilModelsUpd(idxTrial).sarcomere.l1HNOffset=...
                     optParams.value;
             case 'simulate'
                 %nothing to do here.
@@ -188,6 +192,8 @@ function [optError,optErrorValues, figDebugFitting,...
                     modelConfig);
 
         muscleState0                = mtInfo.state.value;
+        muscleState0(3,1)           = muscleState0(3,1) ...
+            + ratFibrilModelsUpd(idxTrial).sarcomere.l1HNOffset;
         modelConfig.initializeState = 0;           
         
         benchConfig.numberOfMuscleStates = length(muscleState0);
@@ -403,6 +409,41 @@ function [optError,optErrorValues, figDebugFitting,...
 
                optError = optError+sqrt(mean((mdlY - optParams.exp(idxTrial).y).^2));
 
+            case 'l1HNOffset'
+               lopt = ratFibrilModelsUpd(idxTrial).sarcomere.optimalSarcomereLength;
+
+               x0N = optParams.exp(idxTrial).x(1,1)/lopt;
+               x1N = optParams.exp(idxTrial).x(end,1)/lopt;
+               idx0 = find(benchRecord.normFiberLength(:,idx)<x0N,1,'last');
+               idx1 = size(benchRecord.normFiberLength,1);
+
+               %
+               % Sample the simulation record at the same lengths as the
+               % experimental data
+               %
+               mdlX = optParams.exp(idxTrial).x;               
+               mdlY = zeros(size(optParams.exp(idxTrial).x));
+
+               for i=1:1:length(mdlX)
+                   mdlY(i,1)=interp1(benchRecord.normFiberLength(idx0:idx1,idx).*lopt,...
+                                     benchRecord.normFiberForce(idx0:idx1,idx),...
+                                     mdlX(i,1));                   
+               end
+
+               if(isempty(optErrorValues))
+                 optErrorValues.x = zeros(length(mdlX),3);
+                 optErrorValues.y = zeros(length(mdlX),3);
+                 optErrorValues.yFit = zeros(length(mdlX),3);
+                 optErrorValues.yErr = zeros(length(mdlX),3);
+               end
+               optErrorValues.x(:,idx) = mdlX;
+               optErrorValues.y(:,idx)      = optParams.exp(idxTrial).y;               
+               optErrorValues.yFit(:,idx)   = mdlY;                              
+               optErrorValues.yErr(:,idx)   = optParams.exp(idxTrial).y-mdlY;               
+
+               optError = optError+sqrt(mean((mdlY - optParams.exp(idxTrial).y).^2));
+
+
             case 'simulate'
                 optError=nan;
             otherwise
@@ -479,6 +520,18 @@ function [optError,optErrorValues, figDebugFitting,...
                          txtName);
                     hold on;
     
+                case 'l1HNOffset'
+                    txtName = expTRSS2017.activeLengtheningData(idx).seriesName;
+                    i0=strfind(txtName,'Exp.');
+                    txtName(1,i0:4)='Sim.';
+            
+                    plot(benchRecord.normFiberLength(:,idx).*lceOptMdl,...
+                         benchRecord.normFiberForce(:,idx),...
+                         '-','Color',lineColorsSimTRSS2017(idx,:),...
+                         'DisplayName',...
+                         txtName);
+                    hold on;
+
                 otherwise
                     assert(0,'Error: invalid optParams.name');
             end

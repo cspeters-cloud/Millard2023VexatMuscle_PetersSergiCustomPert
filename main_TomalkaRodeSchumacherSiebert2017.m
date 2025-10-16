@@ -11,9 +11,10 @@ if(flag_OuterLoopMode==0)
     close all;
     clear all;
 
-    simConfigInput.runFitting              = 0; 
+    simConfigInput.runFitting              = 1; 
     simConfigInput.generatePlots           = 0;
     simConfigInput.fitToIndividualTrials   = 1; 
+    simConfigInput.manuallySetTimeConstant = 0;
 
 end
 
@@ -60,9 +61,12 @@ assert(~(fittingConfig.fitTimeConstant ...
 fittingConfig.fitKx             =0;
 fittingConfig.fitQToF           =0;
 fittingConfig.fitQToK           =1;
-fittingConfig.fitf1HNPreload    =1;
+fittingConfig.fitf1HNPreload    =0;
+fittingConfig.fitl1HNOffset     =1;
 
-assert(~fittingConfig.fitQToF && fittingConfig.fitQToK,...
+assert(~(fittingConfig.fitf1HNPreload && fittingConfig.fitl1HNOffset),...
+    'Error: using both fitf1HNPreload and fitl1HNOffset does not make sense');
+assert(~(fittingConfig.fitQToF && fittingConfig.fitQToK),...
   'Error: fitting Q to force and also Q to stiffness does not make sense');
 
 fittingConfig.numberOfBisections = 10;
@@ -222,6 +226,7 @@ for idxTrial = simConfig.trials
             tmpModel.ratMuscleModelParameters.(modelFields{idxField});
     end
 
+    ratFibrilModelsDefault(idxTrial).sarcomere.l1HNOffset=0;
     %
     % Update the default settings to be consistent with a skinned fiber
     %
