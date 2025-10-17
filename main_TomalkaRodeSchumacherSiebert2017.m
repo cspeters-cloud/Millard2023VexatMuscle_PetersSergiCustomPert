@@ -11,8 +11,8 @@ if(flag_OuterLoopMode==0)
     close all;
     clear all;
 
-    simConfigInput.runFitting              = 1; 
-    simConfigInput.generatePlots           = 0;
+    simConfigInput.runFitting              = 0; 
+    simConfigInput.generatePlots           = 1;
     simConfigInput.fitToIndividualTrials   = 1; 
     simConfigInput.manuallySetTimeConstant = 0;
 
@@ -122,8 +122,8 @@ addpath( genpath(projectFolders.postprocessing) );
 plotLayoutSettings = struct('numberOfHorizontalPlotColumns',  3,...
                             'numberOfVerticalPlotRows',       5,...
                             'flag_fixedPlotWidth',            1,...
-                            'plotWidth',                      4.5,...
-                            'plotHeight',                     4.5,...
+                            'plotWidth',                      3.75,...
+                            'plotHeight',                     3.75,...
                             'flag_usingOctave',               0);
 
 numberOfHorizontalPlotColumns = plotLayoutSettings.numberOfHorizontalPlotColumns;
@@ -133,7 +133,7 @@ plotWidth                     = plotLayoutSettings.plotWidth;
 plotHeight                    = plotLayoutSettings.plotHeight;
 flag_usingOctave              = plotLayoutSettings.flag_usingOctave;
 
-plotHorizMarginCm = 1.;
+plotHorizMarginCm = 1.0;
 plotVertMarginCm  = 2.0;
 
 pageWidth   = (plotWidth+plotHorizMarginCm)*numberOfHorizontalPlotColumns...

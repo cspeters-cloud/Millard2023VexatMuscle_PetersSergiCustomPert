@@ -21,13 +21,13 @@ addpath( genpath(projectFolders.postprocessing) );
 validExperiments = {'TRSS2017','TWHSS2021','WTRS2024'};
 experimentName = validExperiments{1};
 
-trialId = 0;
+trialId = 3;
 
 
 %%
 % Parameters
 %%
-flag_makeAndSavePubPlots = 1;
+flag_makeAndSavePubPlots = 0;
 flag_makeDetailedExpDataPlots=1;
 
 validMuscles = {'SOL','EDL'};
@@ -261,8 +261,8 @@ switch experimentName
 
         setCurveProperties.shiftLengthActiveForceLengthCurveDescendingCurve=0;
 
-        setSarcomereProperties.normCrossBridgeStiffness         =75;%49.1;  %fiso/lopt
-        setSarcomereProperties.normCrossBridgeDamping           =0.347;%*(75/49.1); %fiso/(lopt/s)
+        %setSarcomereProperties.normCrossBridgeStiffness         =75;%49.1;  %fiso/lopt
+        %setSarcomereProperties.normCrossBridgeDamping           =0.347;%*(75/49.1); %fiso/(lopt/s)
 
 
         switch trialId
@@ -340,11 +340,11 @@ fprintf(  '\n');
 %%
 % Plot configuration
 %%
-plotLayoutSettings = struct('numberOfHorizontalPlotColumns',  2,...
+plotLayoutSettings = struct('numberOfHorizontalPlotColumns',  3,...
                             'numberOfVerticalPlotRows',       1,...
                             'flag_fixedPlotWidth',            1,...
-                            'plotWidth',                      7,...
-                            'plotHeight',                     7,...
+                            'plotWidth',                      3.75,...
+                            'plotHeight',                     3.75,...
                             'flag_usingOctave',               0);
 
 numberOfHorizontalPlotColumns = plotLayoutSettings.numberOfHorizontalPlotColumns;
@@ -354,7 +354,7 @@ plotWidth                     = plotLayoutSettings.plotWidth;
 plotHeight                    = plotLayoutSettings.plotHeight;
 flag_usingOctave              = plotLayoutSettings.flag_usingOctave;
 
-plotHorizMarginCm = 2;
+plotHorizMarginCm = 1;
 plotVertMarginCm  = 2;
 
 pageWidth   = (plotWidth+plotHorizMarginCm)*numberOfHorizontalPlotColumns...
