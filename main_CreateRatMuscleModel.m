@@ -21,7 +21,8 @@ addpath( genpath(projectFolders.postprocessing) );
 validExperiments = {'TRSS2017','TWHSS2021','WTRS2024'};
 experimentName = validExperiments{1};
 
-trialId = 3;
+flag_saveIdenticalModels=1;
+trialId = 0;
 
 
 %%
@@ -245,9 +246,9 @@ switch experimentName
         setSarcomereProperties.normLengthTitinActinBondMinimum  = 1.70/2.525;
         setSarcomereProperties.normMaxActiveTitinToActinDamping = 200;
 
-        setSarcomereProperties.fiberForceLengthCurviness = 0.85;
+        setSarcomereProperties.fiberForceLengthCurviness = 0.9;
 
-        setCurveProperties.useTitinModel2025                 = 1;
+        setCurveProperties.useTitinModel2025                 = 0;
 
         setCurveProperties.forceVelocityMultiplierAtLowEccentricFiberVelocity = 1.35;
         setCurveProperties.forceVelocityMultiplierAtMaximumEccentricFiberVelocity = 1.45; 
@@ -265,18 +266,19 @@ switch experimentName
         %setSarcomereProperties.normCrossBridgeDamping           =0.347;%*(75/49.1); %fiso/(lopt/s)
 
 
-        switch trialId
-            case 0
-                setSarcomereProperties.normPevkToActinAttachmentPoint   = 0.75;                 
-            case 1
-                setSarcomereProperties.normPevkToActinAttachmentPoint   = 0.60; 
-            case 2
-                setSarcomereProperties.normPevkToActinAttachmentPoint   = 0.6875; 
-            case 3
-                setSarcomereProperties.normPevkToActinAttachmentPoint = 0.775; 
-            otherwise assert(0,'Error: trialId not recognized');
+        if(flag_saveIdenticalModels==0)
+            switch trialId
+                case 0
+                    setSarcomereProperties.normPevkToActinAttachmentPoint   = 0.75;                 
+                case 1
+                    setSarcomereProperties.normPevkToActinAttachmentPoint   = 0.60; 
+                case 2
+                    setSarcomereProperties.normPevkToActinAttachmentPoint   = 0.6875; 
+                case 3
+                    setSarcomereProperties.normPevkToActinAttachmentPoint = 0.775; 
+                otherwise assert(0,'Error: trialId not recognized');
+            end
         end
-
     case 'TWHSS2021'
         muscleName = validMuscles{1};        
         setSarcomereProperties.normPevkToActinAttachmentPoint   = 0.95;         
@@ -492,23 +494,45 @@ if(setMusculotendonProperties.makeSkinnedFibrilModel==1)
     fibrilStr='Fibril';
 end
 
-fileName = ['rat',experimentName,muscleName,...
-             fibrilStr,'ActiveTitin',wlcStr,'.mat'];
+if(flag_saveIdenticalModels==1)
+    for i=1:1:3
+        fileName = ['rat',experimentName,muscleName,...
+                     fibrilStr,'ActiveTitin',wlcStr,'.mat'];
+        
+        if(strcmp(experimentName,'TRSS2017')==1)
+            fileName = ['rat',experimentName,muscleName,...
+                         fibrilStr,'ActiveTitin',wlcStr,'_',...
+                         num2str(i-1),'.mat'];
+        
+        end
+        
+        
+        
+        
+        filePathRatMuscle = fullfile(projectFolders.output_structs_FittedModels,...
+                                     fileName);
+        save(filePathRatMuscle,'ratMuscleModelParameters');
+    end
 
-if(strcmp(experimentName,'TRSS2017')==1)
+else
+
     fileName = ['rat',experimentName,muscleName,...
-                 fibrilStr,'ActiveTitin',wlcStr,'_',...
-                 num2str(trialId),'.mat'];
-
+                 fibrilStr,'ActiveTitin',wlcStr,'.mat'];
+    
+    if(strcmp(experimentName,'TRSS2017')==1)
+        fileName = ['rat',experimentName,muscleName,...
+                     fibrilStr,'ActiveTitin',wlcStr,'_',...
+                     num2str(trialId),'.mat'];
+    
+    end
+    
+    
+    
+    
+    filePathRatMuscle = fullfile(projectFolders.output_structs_FittedModels,...
+                                 fileName);
+    save(filePathRatMuscle,'ratMuscleModelParameters');
 end
-
-
-
-
-filePathRatMuscle = fullfile(projectFolders.output_structs_FittedModels,...
-                             fileName);
-save(filePathRatMuscle,'ratMuscleModelParameters');
-
 
 
 
