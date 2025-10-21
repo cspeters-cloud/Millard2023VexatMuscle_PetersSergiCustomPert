@@ -18,18 +18,25 @@ addpath( genpath(projectFolders.simulation)     );
 addpath( genpath(projectFolders.models)         );
 addpath( genpath(projectFolders.postprocessing) );
 
+%%
+% Load the reference data
+%%
+
+[ratMuscleData, ratMuscleMetaData] = ...
+        loadRatSkeletalMuscleData(projectFolders);
+
+%%
+%Script configuration
+%%
+
 validExperiments = {'TRSS2017','TWHSS2021','WTRS2024'};
 experimentName = validExperiments{1};
 
 flag_saveIdenticalModels=1;
 trialId = 0;
 
-
-%%
-% Parameters
-%%
-flag_makeAndSavePubPlots = 0;
-flag_makeDetailedExpDataPlots=1;
+flag_makeAndSavePubPlots        = 1;
+flag_makeDetailedExpDataPlots=0;
 
 validMuscles = {'SOL','EDL'};
 
@@ -53,9 +60,10 @@ indexOfDataSetToPassiveForceLengthCurve =0;
 
 %Sets the initial stiffness and length at which the curve develops
 %one norm force
-indexStephensonWilliams1982 = 3;
+%indexTRSS2017 = ratMuscleMetaData.index;
 
-indexOfDataSetForPassiveCurveParameters = indexStephensonWilliams1982;
+
+indexOfDataSetForPassiveCurveParameters = ratMuscleMetaData.index_SW1982;
 % 1. Tomalka et al. 2017
 % 2. Zuurbier et al. 1995
 % 3. Stephenson & Williams 1982
@@ -75,12 +83,7 @@ expDataSetFittingData(3).minLengthWhereFpeIsLinear=0.3;
 
 
 
-%%
-% Load the reference data
-%%
 
-[ratMuscleData, ratMuscleMetaData] = ...
-        loadRatSkeletalMuscleData(projectFolders);
 %
 % Select the reference data set
 %
@@ -561,49 +564,81 @@ if(flag_makeAndSavePubPlots==1)
         end
     end
 
-  activeForceLengthData = [];
-
-  for i=1:1:length(ratMuscleData(indexStephensonWilliams1982).activeForceLengthData)
-      activeForceLengthData = [...
-          activeForceLengthData;...
-          ratMuscleData(indexStephensonWilliams1982).activeForceLengthData(i).x,...
-          ratMuscleData(indexStephensonWilliams1982).activeForceLengthData(i).y];
-  end
-
-  passiveForceLengthData = [];
-
-  for i=1:1:length(ratMuscleData(indexStephensonWilliams1982).passiveForceLengthData)
-      passiveForceLengthData = [...
-          passiveForceLengthData;...
-          ratMuscleData(indexStephensonWilliams1982).passiveForceLengthData(i).x,...
-          ratMuscleData(indexStephensonWilliams1982).passiveForceLengthData(i).y];
-  end
-
-  activeForceLengthData(:,1)=...
-      activeForceLengthData(:,1)./...
-      expDataSetFittingData(indexStephensonWilliams1982).optimalSarcomereLength;
-
-  passiveForceLengthData(:,1)=...
-      passiveForceLengthData(:,1)./...
-      expDataSetFittingData(indexStephensonWilliams1982).optimalSarcomereLength;
 
   updateTitinPlotsOnly=0;
   if(strcmp(experimentName,'TRSS2017') && trialId > 1)
       updateTitinPlotsOnly=1;
   end
 
-  [success] = plotMuscleCurves2025(...
+
+ activeForceLengthDataSeries(2)=struct('x',[],'y',[],'label','');
+ passiveForceLengthDataSeries(2)=struct('x',[],'y',[],'label','');
+
+idxSeries = [ratMuscleMetaData.index_SW1982; ...
+                       ratMuscleMetaData.index_TRSS2017];
+
+labelSeries = {'SW1982 F (Exp)';'TRSS2017 F (Exp)'};
+colorSeriesActive            = [0.5,0.5,0.5; ...
+                                                    0,0,0];
+colorSeriesActiveFace   = [1,1,1; ...
+                                                    0,0,0];
+colorSeriesPassive          = [0.5,0.5,0.5; ...
+                                                    0,0,0];%[0.75,0.75,1; 0.25,0.25,1];
+colorSeriesPassiveFace = [0.5,0.5,0.5; ...
+                                                    1,1,1];%[0.75,0.75,1; 0.25,0.25,1];
+
+activeMarkSeries    = {'o','d'};
+passiveMarkSeries = {'o','d'};
+
+for i=1:1:2
+  idx = idxSeries(i,1);    
+  for j=1:1:length(ratMuscleData(idx).activeForceLengthData)
+      activeForceLengthDataSeries(i).x = [...
+          activeForceLengthDataSeries(i).x;...
+          ratMuscleData(idx).activeForceLengthData(j).x];
+
+      activeForceLengthDataSeries(i).y = [...
+          activeForceLengthDataSeries(i).y;...
+          ratMuscleData(idx).activeForceLengthData(j).y];
+
+      activeForceLengthDataSeries(i).label = labelSeries{i};
+      activeForceLengthDataSeries(i).color = colorSeriesActive(i,:);
+      activeForceLengthDataSeries(i).MarkerFaceColor = colorSeriesActiveFace(i,:);
+      activeForceLengthDataSeries(i).mark = activeMarkSeries{i};
+  end
+  for j=1:1:length(ratMuscleData(idx).passiveForceLengthData)  
+      passiveForceLengthDataSeries(i).x = [...
+          passiveForceLengthDataSeries(i).x;...
+          ratMuscleData(idx).passiveForceLengthData(j).x];
+
+      passiveForceLengthDataSeries(i).y = [...
+          passiveForceLengthDataSeries(i).y;...
+          ratMuscleData(idx).passiveForceLengthData(j).y];
+
+      passiveForceLengthDataSeries(i).label = labelSeries{i};      
+      passiveForceLengthDataSeries(i).color = colorSeriesPassive(i,:);
+      passiveForceLengthDataSeries(i).MarkerFaceColor = colorSeriesPassiveFace(i,:);
+      passiveForceLengthDataSeries(i).mark = passiveMarkSeries{i};
+
+  end 
+end
+
+
+
+  [success] = plotRatMuscleCurvesTRSS2017(...
                 ratMuscleModelParameters,...
                 defaultHumanSoleus,...
                 activeForceLengthCurveAnnotationPoints,...
-                activeForceLengthData,...
-                passiveForceLengthData,...
+                activeForceLengthDataSeries,...
+                passiveForceLengthDataSeries,...
                 ratMuscleModelParameters.sarcomere.normFiberLengthAtOneNormPassiveForce,...
                 trialId,...
                 updateTitinPlotsOnly,...
                 previousPlotFullFilePathName,...
                 plotFullFilePathName,...
                 projectFolders);
+
+    
 end 
 
 
