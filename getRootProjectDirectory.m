@@ -16,7 +16,7 @@ function rootDir = getRootProjectDirectory()
 
 localDirContents = dir();
 
-rootDirName = 'Millard2023VexatMuscle';
+rootDirName = 'Millard2023VexatMuscle_PetersSergiCustomPert';
 
 assert(contains(localDirContents(1).folder,rootDirName),...
     sprintf(['Error: Matlab must start in the %s',...
